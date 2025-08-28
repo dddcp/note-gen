@@ -23,6 +23,26 @@
     "error": "失敗"
   },
   "settings": {
+    "general": {
+      "title": "一般設定",
+      "desc": "ここでは、アプリケーションの基本設定を構成できます。インターフェースのテーマ、言語などのオプションが含まれます。",
+      "interface": {
+        "title": "インターフェース設定",
+        "theme": {
+          "title": "テーマ",
+          "desc": "アプリケーションの外観テーマを選択",
+          "options": {
+            "light": "ライトモード",
+            "dark": "ダークモード",
+            "system": "システム設定に従う"
+          }
+        },
+        "language": {
+          "title": "言語",
+          "desc": "アプリケーションの表示言語を選択"
+        }
+      }
+    },
     "rag": {
       "title": "知識庫",
       "desc": "ここでは、知識庫に関する設定を構成できます。知識庫は、RAG技術に基づいて、埋め込みモデルを使用してテキストをベクトルに変換し、ベクトル検索を介して智能的な検索と智能的な回答を達成します。",
@@ -84,7 +104,12 @@
       "addPromptDesc": "マスク名と内容を入力し、AIがあなたのニーズをよりよく理解できるようにしてください。",
       "promptTitlePlaceholder": "マスク名を入力してください",
       "promptContentPlaceholder": "マスク内容を入力してください",
-      "promptContent": "マスク内容"
+      "promptContent": "マスク内容",
+      "optimizePrompt": "プロンプト最適化",
+      "optimizing": "最適化中...",
+      "optimizeSuccess": "プロンプトの最適化が成功しました",
+      "optimizeFailed": "プロンプトの最適化に失敗しました。後でもう一度お試しください",
+      "noContentToOptimize": "まずプロンプト内容を入力してください"
     },
     "defaultModel": {
       "title": "デフォルトモデル",
@@ -117,6 +142,21 @@
         "reranking": {
           "title": "再ランキングモデル",
           "desc": "検索結果の並べ替えと最適化に使用されます。"
+        }
+      }
+    },
+    "readAloud": {
+      "title": "音声読み上げ",
+      "desc": "ここでは、音声読み上げ関連の設定を構成し、チャットコンテンツに音声再生機能を提供できます。",
+      "noModel": "モデルを使用しない",
+      "options": {
+        "audioModel": {
+          "title": "音声モデル",
+          "desc": "テキストから音声への変換にAIモデルを選択し、様々な音声タイプとパラメータ設定をサポートします。"
+        },
+        "speed": {
+          "title": "読み上げ速度",
+          "desc": "音声の再生速度を調整します。0.25倍から4倍の範囲で設定でき、1倍が通常の速度です。"
         }
       }
     },
@@ -190,8 +230,16 @@
       "backupMethodDesc": "主要バックアップ方法として設定すると、文章作成中のすべての同期関連機能が現在のバックアップ方法を使用します（画像ホスティング機能を除く）",
       "isPrimaryBackup": "現在の {type} 主要バックアップ方法",
       "setPrimaryBackup": "主要バックアップ方法として設定",
+      "gitlabInstanceType": "GitLab インスタンスタイプ",
+      "gitlabInstanceTypeDesc": "接続する GitLab インスタンスタイプを選択してください",
+      "gitlabInstanceTypePlaceholder": "GitLab インスタンスタイプを選択してください",
+      "gitlabInstanceTypeOptions": {
+        "selfHosted": "自建インスタンス",
+        "selfHostedDesc": "自建 GitLab インスタンスの URL を入力してください（例：https://gitlab.example.com）"
+      },
+      "gitlabAccessTokenDesc": "{instanceDisplayName}でパーソナルアクセストークンを作成するには、api権限が必要です",
       "autoSyncOptions": {
-        "placeholder": "自動同步时间",
+        "placeholder": "自動同期時間",
         "disabled": "無効",
         "10s": "10 秒",
         "30s": "30 秒",
@@ -248,7 +296,7 @@
         "backupTo": "WebDAVにバックアップ",
         "syncFrom": "WebDAVから同期",
         "serverUrl": "WebDAVサーバーURL",
-        "serverUrlDesc": "WebDAVサーバーのURLを入力してください、例：https://dav.example.com",
+        "serverUrlDesc": "WebDAVサーバーのURLを入力してくださいパスを含まない、例：https://dav.example.com http://192.8.8.88:9999 ",
         "serverUrlPlaceholder": "https://dav.example.com",
         "username": "ユーザー名",
         "usernameDesc": "WebDAVサーバーのユーザー名",
@@ -262,7 +310,46 @@
         "backupSuccess": "バックアップ成功",
         "backupSuccessDesc": "{count} 個のファイルをWebDAVにバックアップしました。",
         "syncSuccess": "同期成功",
-        "syncSuccessDesc": "WebDAVからローカルに {count} 個のファイルを同期しました。"
+        "syncSuccessDesc": "WebDAVからローカルに {count} 個のファイルを同期しました。",
+        "syncFailed": "同期失敗",
+        "backupFailed": "バックアップ失敗",
+        "directoryCreated": "ディレクトリが作成されました",
+        "directoryCreatedDesc": "ディレクトリ {path} が正常に作成されました。",
+        "createDir": "ディレクトリを作成",
+        "success": "成功",
+        "failed": "失敗",
+        "error": {
+          "pathNotFound": "パスが存在しないか、サーバーにアクセスできません。",
+          "createDirFailed": "ディレクトリの作成に失敗しました",
+          "connectionTimeOut": "接続タイムアウト、ネットワークまたはサーバーを確認してください。"
+        }
+      },
+      "localBackup": {
+        "tabTitle": "ローカルバックアップ",
+        "export": {
+          "title": "バックアップのエクスポート",
+          "desc": "アプリケーションデータを .zip ファイルにパッケージし、指定した場所に保存します。",
+          "button": "場所を選択してエクスポート",
+          "exporting": "エクスポート中..."
+        },
+        "import": {
+          "title": "バックアップのインポート",
+          "desc": ".zip ファイルからアプリケーションデータを復元し、現在のすべてのデータを上書きします。",
+          "button": "ファイルを選択してインポート",
+          "importing": "インポート中...",
+          "warning": "インポート操作により現在のすべてのデータが上書きされます。重要なコンテンツがバックアップされていることを確認してください！"
+        },
+        "exportDialog": {
+          "title": "バックアップファイルの保存場所を選択"
+        },
+        "importDialog": {
+          "title": "インポートするバックアップファイルを選択"
+        },
+        "exportSuccess": "バックアップのエクスポートが成功しました！",
+        "exportError": "バックアップのエクスポートに失敗しました",
+        "importSuccess": "バックアップのインポートが成功しました！変更を適用するためにアプリケーションが再起動されます。",
+        "importError": "バックアップのインポートに失敗しました",
+        "restartConfirm": "インポートが完了しました！変更を適用するために今すぐアプリケーションを再起動しますか？"
       }
     },
     "template": {
@@ -277,7 +364,15 @@
       "selectScope": "範囲を選択",
       "addTemplateDesc": "カスタムテンプレート名称と内容を入力し、AIがあなたのニーズをよりよく理解できるようにしてください。",
       "editTemplate": "編集カスタムテンプレート",
-      "noContent": "内容がありません"
+      "noContent": "内容がありません",
+      "range": {
+        "all": "すべて",
+        "today": "今日",
+        "week": "過去1週間",
+        "month": "過去1ヶ月",
+        "threeMonth": "過去3ヶ月",
+        "year": "過去1年"
+      }
     },
     "shortcut": {
       "title": "ショートカットキー",
@@ -360,10 +455,17 @@
         "title": "ワークスペース設定",
         "desc": "アプリケーションのワークスペースディレクトリを設定します。ファイルはこのディレクトリに保存されます。",
         "current": "現在のワークスペースパス",
+        "defaultPath": "デフォルトワークスペース",
         "default": "現在デフォルトのワークスペースパスを使用しています。",
         "custom": "現在カスタムワークスペースパスを使用しています。",
         "select": "ワークスペースディレクトリを選択",
-        "reset": "デフォルトパスにリセット"
+        "reset": "デフォルトパスにリセット",
+        "history": "履歴パス",
+        "selectFromHistory": "履歴からワークスペースを選択",
+        "clearHistory": "履歴をクリア",
+        "actions": "アクション",
+        "searchPlaceholder": "ワークスペースパスを検索...",
+        "noResults": "結果が見つかりません"
       },
       "info": {
         "title": "ワークスペースの説明", 
@@ -638,6 +740,7 @@
           "disable": "クリップボード監視(無効)"
         },
         "send": "送信",
+        "stop": "停止",
         "terminate": "終了",
         "tagLink": {
           "on": "タグとリンク済み",
@@ -663,6 +766,12 @@
           "notSupported": "ベクトルモデルが利用できません",
           "enabled": "知識ベース検索有効",
           "disabled": "知識ベース検索無効"
+        },
+        "modeSelect": {
+          "tooltip": "入力モードを選択",
+          "chat": "チャットモード",
+          "gen": "整理モード",
+          "translate": "翻訳モード"
         }
       },
       "header": {
@@ -685,7 +794,13 @@
         }
       },
       "messageControl": {
-        "words": "字"
+        "words": "字",
+        "readAloud": "音声読み上げ",
+        "playing": "再生中",
+        "loading": "準備中",
+        "stop": "停止",
+        "copy": "コピー",
+        "copied": "コピーしました"
       },
       "preview": {
         "close": "关闭",
@@ -703,6 +818,7 @@
         "organize": "将你的記録整理为文章："
       },
       "note": {
+        "organize": "整理",
         "writing": "執筆",
         "convert": "文章に変換",
         "description": "現在のノートはAIによって生成され、編集できません。ノートを文章（ローカルファイル）に変換して、執筆ページで二次創作できます。",
@@ -818,6 +934,9 @@
         "deleteSyncFile": "同期ファイルを削除",
         "deleteLocalFile": "ローカルファイルを削除",
         "delete": "削除",
+        "confirmDelete": "フォルダ \"{name}\" を削除してもよろしいですか？この操作により、フォルダとその内容がすべて削除されます。",
+        "deleteSuccess": "削除しました",
+        "deleteFailed": "削除に失敗しました",
         "newFile": "新規ファイル",
         "newFolder": "新規フォルダ",
         "syncFolder": "同期",
@@ -849,6 +968,13 @@
         "error": "画像のアップロードに失敗しました",
         "needToken": "画像のアップロードには accessToken の設定が必要です",
         "uploading": "画像をアップロードしています"
+      },
+      "floatbar": {
+        "readAloud": {
+          "start": "朗读",
+          "stop": "停止",
+          "loading": "加载中..."
+        }
       },
       "toolbar": {
         "mark": {

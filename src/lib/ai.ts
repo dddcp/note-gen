@@ -407,6 +407,7 @@ export async function fetchAi(text: string): Promise<string> {
  */
 export async function fetchAiStream(text: string, onUpdate: (content: string) => void, abortSignal?: AbortSignal): Promise<string> {
   try {
+    
     // 获取AI设置
     const aiConfig = await getAISettings()
     
@@ -417,13 +418,17 @@ export async function fetchAiStream(text: string, onUpdate: (content: string) =>
     const { messages } = await prepareMessages(text, true)
 
     const openai = await createOpenAIClient(aiConfig)
+    
     const stream = await openai.chat.completions.create({
       model: aiConfig?.model || '',
       messages: messages,
       temperature: aiConfig?.temperature,
       top_p: aiConfig?.topP,
       stream: true,
+    }, {
+      signal: abortSignal
     })
+    
     
     let thinking = ''
     let fullContent = ''
@@ -552,13 +557,20 @@ export async function fetchAiDescByImage(base64: string) {
 }
 
 // placeholder
-export async function fetchAiPlaceholder(text: string): Promise<string> {
+export async function fetchAiPlaceholder(text: string): Promise<string | false> {
   try {
     // 获取AI设置
     const aiConfig = await getAISettings('placeholderPrimaryModel')
 
     // 构建 placeholder 提示词
-    const placeholderPrompt = `Generate a placeholder for the following text: ${text}`
+    const placeholderPrompt = `
+      You are a note-taking software with an intelligent assistant. You can refer to the recorded content to take notes.
+      Do not exceed 20 characters.
+      There is only one line left. Line breaks are prohibited.
+      Do not generate any special characters.
+      Leave it as plain text and no format is required.
+      Generate a question based on the following content:
+      ${text}`
 
     // 准备消息
     const { messages } = await prepareMessages(`${placeholderPrompt}\n\n${text}`, false)
@@ -573,10 +585,11 @@ export async function fetchAiPlaceholder(text: string): Promise<string> {
     })
 
     const result = completion.choices[0]?.message?.content || ''
-    // 去掉所有换行符和各种特殊符号
-    return result.replace(/\n/g, '').replace(/\s/g, '')
-  } catch (error) {
-    return handleAIError(error) || ''
+
+    // 去掉所有换行符和各种特殊符号，不包括空格
+    return result.trim()
+  } catch {
+    return false
   }
 }
 

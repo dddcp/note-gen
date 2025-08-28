@@ -5,12 +5,12 @@ import { AiConfig } from '@/app/core/setting/config'
 import { GitlabInstanceType } from '@/lib/gitlab.types'
 
 export enum GenTemplateRange {
-  All = '全部',
-  Today = '今天',
-  Week = '近一周',
-  Month = '近一月',
-  ThreeMonth = '近三个月',
-  Year = '近一年',
+  All = 'all',
+  Today = 'today',
+  Week = 'week',
+  Month = 'month',
+  ThreeMonth = 'threeMonth',
+  Year = 'year',
 }
 
 export interface GenTemplate {
@@ -60,6 +60,9 @@ interface SettingState {
 
   imageMethodModel: string
   setImageMethodModel: (imageMethodModel: string) => Promise<void>
+
+  audioModel: string
+  setAudioModel: (audioModel: string) => Promise<void>
 
   templateList: GenTemplate[]
   setTemplateList: (templateList: GenTemplate[]) => Promise<void>
@@ -124,6 +127,12 @@ interface SettingState {
 
   workspacePath: string
   setWorkspacePath: (path: string) => Promise<void>
+
+  // 工作区历史路径
+  workspaceHistory: string[]
+  addWorkspaceHistory: (path: string) => Promise<void>
+  removeWorkspaceHistory: (path: string) => Promise<void>
+  clearWorkspaceHistory: () => Promise<void>
 
   assetsPath: string
   setAssetsPath: (path: string) => Promise<void>
@@ -224,6 +233,13 @@ const useSettingStore = create<SettingState>((set, get) => ({
     set({ imageMethodModel })
   },
 
+  audioModel: '',
+  setAudioModel: async (audioModel) => {
+    const store = await Store.load('store.json');
+    await store.set('audioPrimaryModel', audioModel)
+    set({ audioModel })
+  },
+
   templateList: [
     {
       id: '0',
@@ -311,6 +327,35 @@ const useSettingStore = create<SettingState>((set, get) => ({
     set({ workspacePath: path })
     const store = await Store.load('store.json');
     await store.set('workspacePath', path)
+    
+    // 如果路径不为空且不在历史记录中，则添加到历史记录
+    if (path && !get().workspaceHistory.includes(path)) {
+      await get().addWorkspaceHistory(path)
+    }
+  },
+
+  // 工作区历史路径管理
+  workspaceHistory: [],
+  addWorkspaceHistory: async (path: string) => {
+    const currentHistory = get().workspaceHistory
+    const newHistory = [path, ...currentHistory.filter(p => p !== path)].slice(0, 10) // 最多保存10个历史路径
+    set({ workspaceHistory: newHistory })
+    const store = await Store.load('store.json')
+    await store.set('workspaceHistory', newHistory)
+    await store.save()
+  },
+  removeWorkspaceHistory: async (path: string) => {
+    const newHistory = get().workspaceHistory.filter(p => p !== path)
+    set({ workspaceHistory: newHistory })
+    const store = await Store.load('store.json')
+    await store.set('workspaceHistory', newHistory)
+    await store.save()
+  },
+  clearWorkspaceHistory: async () => {
+    set({ workspaceHistory: [] })
+    const store = await Store.load('store.json')
+    await store.set('workspaceHistory', [])
+    await store.save()
   },
 
   // Gitee 相关设置
