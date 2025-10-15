@@ -31,13 +31,49 @@ async function getPromptContent(): Promise<string> {
 async function getAISettings(modelType?: string): Promise<AiConfig | undefined> {
   const store = await Store.load('store.json')
   const aiConfigs = await store.get<AiConfig[]>('aiModelList')
-  const modelKey = await store.get(modelType || 'primaryModel')
-  if (!modelKey) {
-    const primaryModel = await store.get<string>('primaryModel')
-    return aiConfigs?.find(item => item.key === primaryModel)
-  } else {
-    return aiConfigs?.find(item => item.key === modelKey)
+  const modelId = await store.get(modelType || 'primaryModel')
+  
+  if (!modelId || !aiConfigs) {
+    return undefined
   }
+
+  // 在新的数据结构中，需要找到包含指定模型ID的配置
+  for (const config of aiConfigs) {
+    // 检查新的 models 数组结构
+    if (config.models && config.models.length > 0) {
+      // 首先尝试直接匹配模型ID
+      let targetModel = config.models.find(model => model.id === modelId)
+      
+      // 如果没找到，尝试匹配组合键格式 ${config.key}-${model.id}
+      if (!targetModel && typeof modelId === 'string' && modelId.includes('-')) {
+        const expectedPrefix = `${config.key}-`
+        if (modelId.startsWith(expectedPrefix)) {
+          const originalModelId = modelId.substring(expectedPrefix.length)
+          targetModel = config.models.find(model => model.id === originalModelId)
+        }
+      }
+      
+      if (targetModel) {
+        // 返回合并了模型配置的 AiConfig
+        return {
+          ...config,
+          model: targetModel.model,
+          modelType: targetModel.modelType,
+          temperature: targetModel.temperature,
+          topP: targetModel.topP,
+          voice: targetModel.voice,
+          enableStream: targetModel.enableStream
+        }
+      }
+    } else {
+      // 向后兼容：处理旧的单模型结构
+      if (config.key === modelId) {
+        return config
+      }
+    }
+  }
+  
+  return undefined
 }
 
 /**
@@ -96,17 +132,40 @@ interface EmbeddingResponse {
  */
 async function getEmbeddingModelInfo() {
   const store = await Store.load('store.json');
-  const embeddingModel = await store.get<string>('embeddingPrimaryModel');
+  const embeddingModel = await store.get<string>('embeddingModel');
   if (!embeddingModel) return null;
   
   const aiModelList = await store.get<AiConfig[]>('aiModelList');
   if (!aiModelList) return null;
   
-  const modelInfo = aiModelList.find(item => 
-    item.key === embeddingModel && item.modelType === 'embedding'
-  );
+  // 在新的数据结构中，需要找到包含指定模型ID的配置
+  for (const config of aiModelList) {
+    // 检查新的 models 数组结构
+    if (config.models && config.models.length > 0) {
+      const targetModel = config.models.find(model => 
+        model.id === embeddingModel && model.modelType === 'embedding'
+      );
+      if (targetModel) {
+        // 返回合并了模型配置的 AiConfig
+        return {
+          ...config,
+          model: targetModel.model,
+          modelType: targetModel.modelType,
+          temperature: targetModel.temperature,
+          topP: targetModel.topP,
+          voice: targetModel.voice,
+          enableStream: targetModel.enableStream
+        };
+      }
+    } else {
+      // 向后兼容：处理旧的单模型结构
+      if (config.key === embeddingModel && config.modelType === 'embedding') {
+        return config;
+      }
+    }
+  }
   
-  return modelInfo || null;
+  return null;
 }
 
 /**
@@ -114,17 +173,40 @@ async function getEmbeddingModelInfo() {
  */
 export async function getRerankModelInfo() {
   const store = await Store.load('store.json');
-  const rerankModel = await store.get<string>('rerankPrimaryModel');
+  const rerankModel = await store.get<string>('rerankingModel');
   if (!rerankModel) return null;
   
   const aiModelList = await store.get<AiConfig[]>('aiModelList');
   if (!aiModelList) return null;
   
-  const modelInfo = aiModelList.find(item => 
-    item.key === rerankModel && item.modelType === 'rerank'
-  );
+  // 在新的数据结构中，需要找到包含指定模型ID的配置
+  for (const config of aiModelList) {
+    // 检查新的 models 数组结构
+    if (config.models && config.models.length > 0) {
+      const targetModel = config.models.find(model => 
+        model.id === rerankModel && model.modelType === 'rerank'
+      );
+      if (targetModel) {
+        // 返回合并了模型配置的 AiConfig
+        return {
+          ...config,
+          model: targetModel.model,
+          modelType: targetModel.modelType,
+          temperature: targetModel.temperature,
+          topP: targetModel.topP,
+          voice: targetModel.voice,
+          enableStream: targetModel.enableStream
+        };
+      }
+    } else {
+      // 向后兼容：处理旧的单模型结构
+      if (config.key === rerankModel && config.modelType === 'rerank') {
+        return config;
+      }
+    }
+  }
   
-  return modelInfo || null;
+  return null;
 }
 
 /**
@@ -408,9 +490,20 @@ export async function fetchAi(text: string): Promise<string> {
  * @param text 请求文本
  * @param onUpdate 每次收到流式内容时的回调函数
  * @param abortSignal 用于终止请求的信号
+ * @param mcpTools MCP 工具列表（可选）
+ * @param t 翻译函数（可选）
+ * @param chatId 当前chat ID，用于关联MCP工具调用记录（可选）
  */
-export async function fetchAiStream(text: string, onUpdate: (content: string) => void, abortSignal?: AbortSignal): Promise<string> {
+export async function fetchAiStream(
+  text: string, 
+  onUpdate: (content: string) => void, 
+  abortSignal?: AbortSignal,
+  mcpTools?: any[],
+  t?: (key: string, params?: Record<string, any>) => string,
+  chatId?: number
+): Promise<string> {
   try {
+
     
     // 获取AI设置
     const aiConfig = await getAISettings()
@@ -423,35 +516,285 @@ export async function fetchAiStream(text: string, onUpdate: (content: string) =>
 
     const openai = await createOpenAIClient(aiConfig)
     
-    const stream = await openai.chat.completions.create({
+    // 构建请求参数
+    const requestParams: any = {
       model: aiConfig?.model || '',
       messages: messages,
       temperature: aiConfig?.temperature,
       top_p: aiConfig?.topP,
       stream: true,
-    }, {
+    }
+    
+    // 如果有 MCP 工具，添加到请求中
+    if (mcpTools && mcpTools.length > 0) {
+      requestParams.tools = mcpTools
+      requestParams.tool_choice = 'auto'
+    }
+    
+    const stream = await openai.chat.completions.create(requestParams, {
       signal: abortSignal
-    })
+    }) as unknown as AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>
     
     
     let thinking = ''
     let fullContent = ''
+    const toolCalls: any[] = []
+    let hasToolCalls = false
     
     for await (const chunk of stream) {
       if (abortSignal?.aborted) {
         break;
       }
       
-      const thinkingContent = (chunk.choices[0]?.delta as any)?.reasoning_content || ''
-      const content = chunk.choices[0]?.delta?.content || ''
+      const delta = chunk.choices[0]?.delta
+      const thinkingContent = (delta as any)?.reasoning_content || ''
+      const content = delta?.content || ''
+      
+      // 处理工具调用
+      if (delta?.tool_calls) {
+        hasToolCalls = true
+        for (const toolCall of delta.tool_calls) {
+          const index = toolCall.index || 0
+          
+          // 初始化工具调用对象
+          if (!toolCalls[index]) {
+            toolCalls[index] = {
+              id: toolCall.id || '',
+              type: 'function',
+              function: {
+                name: toolCall.function?.name || '',
+                arguments: ''
+              }
+            }
+          }
+          
+          // 累积工具调用参数
+          if (toolCall.function?.arguments) {
+            toolCalls[index].function.arguments += toolCall.function.arguments
+          }
+          
+          // 更新其他字段
+          if (toolCall.id) {
+            toolCalls[index].id = toolCall.id
+          }
+          if (toolCall.function?.name) {
+            toolCalls[index].function.name = toolCall.function.name
+          }
+        }
+      }
+      
+      // 如果有工具调用，不显示中间内容，直接跳过
+      if (hasToolCalls) {
+        continue
+      }
+      
+      // 处理思考内容
       if (thinkingContent) {
         thinking += thinkingContent
         fullContent = `<thinking>${thinking}<thinking>`
       }
+      
+      // 处理普通内容
       if (content) {
         fullContent += content
       }
+      
       onUpdate(fullContent)
+    }
+    
+    // 如果有工具调用，执行工具并继续对话（支持多轮工具调用）
+    if (toolCalls.length > 0) {
+      // 动态导入 callTool 函数（避免循环依赖）
+      const { callTool } = await import('./mcp/tools')
+      
+      // 初始化消息历史
+      let conversationMessages = [...messages]
+      let currentToolCalls = toolCalls
+      const maxIterations = 10 // 防止无限循环
+      let iteration = 0
+      
+      // 循环处理工具调用，直到 AI 不再调用工具
+      while (currentToolCalls.length > 0 && iteration < maxIterations) {
+        iteration++
+
+        onUpdate('')
+        
+        // 执行所有工具调用
+        const toolResults = []
+        for (const toolCall of currentToolCalls) {
+          let mcpToolCallId: string | undefined
+          try {
+            // 解析工具名称（格式：serverId__toolName）
+            const fullName = toolCall.function.name
+            const [serverId, ...toolNameParts] = fullName.split('__')
+            const toolName = toolNameParts.join('__')
+            
+            // 解析参数
+            const args = JSON.parse(toolCall.function.arguments)
+            
+            // 记录 MCP 工具调用（如果提供了 chatId）
+            if (chatId) {
+              const { useMcpStore } = await import('@/stores/mcp')
+              const { default: useChatStore } = await import('@/stores/chat')
+              const mcpStore = useMcpStore.getState()
+              const chatStore = useChatStore.getState()
+              const server = mcpStore.servers.find(s => s.id === serverId)
+              
+              mcpToolCallId = `${toolCall.id}-${Date.now()}`
+              chatStore.addMcpToolCall({
+                id: mcpToolCallId,
+                chatId,
+                toolName,
+                serverId,
+                serverName: server?.name || serverId,
+                params: args,
+                result: '',
+                status: 'calling',
+                timestamp: Date.now()
+              })
+            }
+            
+            // 调用 MCP 工具
+            const result = await callTool(serverId, toolName, args)
+            
+            // 格式化结果
+            const resultText = result.content
+              .filter(c => c.type === 'text')
+              .map(c => c.text)
+              .join('\n')
+            
+            // 更新 MCP 工具调用状态为成功
+            if (chatId && mcpToolCallId) {
+              const { default: useChatStore } = await import('@/stores/chat')
+              const chatStore = useChatStore.getState()
+              chatStore.updateMcpToolCall(mcpToolCallId, {
+                result: resultText || 'Tool executed successfully',
+                status: 'success'
+              })
+            }
+            
+            toolResults.push({
+              tool_call_id: toolCall.id,
+              role: 'tool' as const,
+              content: resultText || 'Tool executed successfully'
+            })
+            
+          } catch (error) {
+            console.error('工具调用失败:', error)
+            
+            // 更新 MCP 工具调用状态为错误
+            if (chatId && mcpToolCallId) {
+              const { default: useChatStore } = await import('@/stores/chat')
+              const chatStore = useChatStore.getState()
+              const errorMsg = error instanceof Error ? error.message : 'Unknown error'
+              chatStore.updateMcpToolCall(mcpToolCallId, {
+                result: `Error: ${errorMsg}`,
+                status: 'error'
+              })
+            }
+            
+            toolResults.push({
+              tool_call_id: toolCall.id,
+              role: 'tool' as const,
+              content: `Error: ${error instanceof Error ? error.message : 'Unknown error'}`
+            })
+          }
+        }
+        
+        // 将工具调用和结果添加到消息历史
+        conversationMessages = [
+          ...conversationMessages,
+          {
+            role: 'assistant' as const,
+            content: null,
+            tool_calls: currentToolCalls
+          },
+          ...toolResults
+        ]
+        
+        const nextStream = await openai.chat.completions.create({
+          model: aiConfig?.model || '',
+          messages: conversationMessages,
+          temperature: aiConfig?.temperature,
+          top_p: aiConfig?.topP,
+          stream: true,
+          tools: mcpTools,
+          tool_choice: 'auto'
+        }, {
+          signal: abortSignal
+        }) as unknown as AsyncIterable<OpenAI.Chat.Completions.ChatCompletionChunk>
+        
+        // 重置工具调用数组
+        currentToolCalls = []
+        thinking = ''
+        fullContent = ''
+        
+        // 处理响应
+        for await (const chunk of nextStream) {
+          if (abortSignal?.aborted) {
+            break;
+          }
+          
+          const delta = chunk.choices[0]?.delta
+          const thinkingContent = (delta as any)?.reasoning_content || ''
+          const content = delta?.content || ''
+          
+          // 检查是否又有新的工具调用
+          if (delta?.tool_calls) {
+            for (const toolCall of delta.tool_calls) {
+              const index = toolCall.index || 0
+              
+              if (!currentToolCalls[index]) {
+                currentToolCalls[index] = {
+                  id: toolCall.id || '',
+                  type: 'function',
+                  function: {
+                    name: toolCall.function?.name || '',
+                    arguments: ''
+                  }
+                }
+              }
+              
+              if (toolCall.function?.arguments) {
+                currentToolCalls[index].function.arguments += toolCall.function.arguments
+              }
+              
+              if (toolCall.id) {
+                currentToolCalls[index].id = toolCall.id
+              }
+              if (toolCall.function?.name) {
+                currentToolCalls[index].function.name = toolCall.function.name
+              }
+            }
+          }
+          
+          // 如果有新的工具调用，不显示内容
+          if (currentToolCalls.length > 0) {
+            continue
+          }
+          
+          // 显示普通内容
+          if (thinkingContent) {
+            thinking += thinkingContent
+            fullContent = `<thinking>${thinking}<thinking>`
+          }
+          if (content) {
+            fullContent += content
+          }
+          onUpdate(fullContent)
+        }
+        
+        // 如果没有新的工具调用，退出循环
+        if (currentToolCalls.length === 0) {
+          break
+        }
+      }
+      
+      if (iteration >= maxIterations) {
+        console.warn('达到最大工具调用次数限制')
+        const maxIterationsText = t ? t('record.mark.mark.chat.mcp.maxIterationsReached') : '⚠️ 达到最大工具调用次数限制'
+        onUpdate(fullContent + '\n\n' + maxIterationsText)
+      }
     }
     
     return fullContent
@@ -510,7 +853,7 @@ export async function fetchAiStreamToken(text: string, onUpdate: (content: strin
 export async function fetchAiDesc(text: string) {
   try {
     // 获取AI设置
-    const aiConfig = await getAISettings('markDescPrimaryModel')
+    const aiConfig = await getAISettings('markDescModel')
     
     const descContent = `根据截图的内容：${text}，返回一条描述，不要超过50字，不要包含特殊字符。`
     
@@ -535,7 +878,7 @@ export async function fetchAiDesc(text: string) {
 export async function fetchAiDescByImage(base64: string) {
   try {
     // 获取AI设置
-    const aiConfig = await getAISettings('imageMethodPrimaryModel')
+    const aiConfig = await getAISettings('imageMethodModel')
 
     const descContent = `根据截图的内容，返回一条描述。`
     
@@ -572,7 +915,13 @@ export async function fetchAiDescByImage(base64: string) {
 export async function fetchAiPlaceholder(text: string): Promise<string | false> {
   try {
     // 获取AI设置
-    const aiConfig = await getAISettings('placeholderPrimaryModel')
+    const aiConfig = await getAISettings('placeholderModel')
+    
+    // 检查配置是否存在
+    if (!aiConfig) {
+      console.error('Placeholder model not configured')
+      return false
+    }
 
     // 构建 placeholder 提示词
     const placeholderPrompt = `
@@ -585,22 +934,23 @@ export async function fetchAiPlaceholder(text: string): Promise<string | false> 
       ${text}`
 
     // 准备消息
-    const { messages } = await prepareMessages(`${placeholderPrompt}\n\n${text}`, false)
+    const { messages } = await prepareMessages(placeholderPrompt, false)
     
     const openai = await createOpenAIClient(aiConfig)
       
     const completion = await openai.chat.completions.create({
-      model: aiConfig?.model || '',
+      model: aiConfig.model || '',
       messages: messages,
-      temperature: aiConfig?.temperature || 1,
-      top_p: aiConfig?.topP || 1,
+      temperature: aiConfig.temperature || 1,
+      top_p: aiConfig.topP || 1,
     })
 
     const result = completion.choices[0]?.message?.content || ''
 
     // 去掉所有换行符和各种特殊符号，不包括空格
     return result.trim()
-  } catch {
+  } catch (error) {
+    console.error('Error in fetchAiPlaceholder:', error)
     return false
   }
 }
@@ -609,7 +959,7 @@ export async function fetchAiPlaceholder(text: string): Promise<string | false> 
 export async function fetchAiTranslate(text: string, targetLanguage: string): Promise<string> {
   try {
     // 获取AI设置
-    const aiConfig = await getAISettings('translatePrimaryModel')
+    const aiConfig = await getAISettings('translateModel')
     
     // 构建翻译提示词
     const translationPrompt = `Translate the following text to ${targetLanguage}. Maintain the original formatting, markdown syntax, and structure:`

@@ -3,9 +3,22 @@ import { Chat, clearChatsByTagId, deleteChat, getChats, initChatsDb, insertChat,
 import { uploadFile as uploadGithubFile, getFiles as githubGetFiles, decodeBase64ToString } from '@/lib/github';
 import { uploadFile as uploadGiteeFile, getFiles as giteeGetFiles } from '@/lib/gitee';
 import { uploadFile as uploadGitlabFile, getFiles as gitlabGetFiles, getFileContent as gitlabGetFileContent } from '@/lib/gitlab';
-import { RepoNames } from '@/lib/github.types';
+import { getSyncRepoName } from '@/lib/repo-utils';
 import { Store } from '@tauri-apps/plugin-store';
 import { locales } from '@/lib/locales';
+
+// MCP 工具调用记录（临时，不保存到数据库）
+export interface McpToolCall {
+  id: string
+  chatId: number // 关联的 chat ID
+  toolName: string
+  serverId: string
+  serverName: string
+  params: Record<string, any>
+  result: string
+  status: 'calling' | 'success' | 'error'
+  timestamp: number
+}
 
 interface ChatState {
   loading: boolean
@@ -38,6 +51,13 @@ interface ChatState {
   setLastSyncTime: (lastSyncTime: string) => void
   uploadChats: () => Promise<boolean>
   downloadChats: () => Promise<Chat[]>
+  
+  // MCP 工具调用记录（临时缓存）
+  mcpToolCalls: McpToolCall[]
+  addMcpToolCall: (toolCall: McpToolCall) => void
+  updateMcpToolCall: (id: string, updates: Partial<McpToolCall>) => void
+  getMcpToolCallsByChatId: (chatId: number) => McpToolCall[]
+  clearMcpToolCalls: () => void
 }
 
 const useChatStore = create<ChatState>((set, get) => ({
@@ -155,37 +175,37 @@ const useChatStore = create<ChatState>((set, get) => ({
     let res;
     switch (primaryBackupMethod) {
       case 'github':
-        files = await githubGetFiles({ path: `${path}/${filename}`, repo: RepoNames.sync })
+        const githubRepo = await getSyncRepoName('github')
+        files = await githubGetFiles({ path: `${path}/${filename}`, repo: githubRepo })
         res = await uploadGithubFile({
           ext: 'json',
           file: jsonToBase64(chats),
-          repo: RepoNames.sync,
+          repo: githubRepo,
           path,
           filename,
           sha: files?.sha,
         })
         break;
       case 'gitee':
-        files = await giteeGetFiles({ path: `${path}/${filename}`, repo: RepoNames.sync })
+        const giteeRepo = await getSyncRepoName('gitee')
+        files = await giteeGetFiles({ path: `${path}/${filename}`, repo: giteeRepo })
         res = await uploadGiteeFile({
           ext: 'json',
           file: jsonToBase64(chats),
-          repo: RepoNames.sync,
+          repo: giteeRepo,
           path,
           filename,
           sha: files?.sha,
         })
-        if (res) {
-          result = true
-        }
         break;
       case 'gitlab':
-        files = await gitlabGetFiles({ path, repo: RepoNames.sync })
+        const gitlabRepo = await getSyncRepoName('gitlab')
+        files = await gitlabGetFiles({ path, repo: gitlabRepo })
         const chatFile = files?.find(file => file.name === filename)
         res = await uploadGitlabFile({
           ext: 'json',
           file: jsonToBase64(chats),
-          repo: RepoNames.sync,
+          repo: gitlabRepo,
           path,
           filename,
           sha: chatFile?.sha || '',
@@ -198,6 +218,29 @@ const useChatStore = create<ChatState>((set, get) => ({
     set({ syncState: false })
     return result
   },
+  // MCP 工具调用记录
+  mcpToolCalls: [],
+  
+  addMcpToolCall: (toolCall: McpToolCall) => {
+    const mcpToolCalls = get().mcpToolCalls
+    set({ mcpToolCalls: [...mcpToolCalls, toolCall] })
+  },
+  
+  updateMcpToolCall: (id: string, updates: Partial<McpToolCall>) => {
+    const mcpToolCalls = get().mcpToolCalls.map(call =>
+      call.id === id ? { ...call, ...updates } : call
+    )
+    set({ mcpToolCalls })
+  },
+  
+  getMcpToolCallsByChatId: (chatId: number) => {
+    return get().mcpToolCalls.filter(call => call.chatId === chatId)
+  },
+  
+  clearMcpToolCalls: () => {
+    set({ mcpToolCalls: [] })
+  },
+  
   downloadChats: async () => {
     const path = '.data'
     const filename = 'chats.json'
@@ -207,13 +250,16 @@ const useChatStore = create<ChatState>((set, get) => ({
     let files;
     switch (primaryBackupMethod) {
       case 'github':
-        files = await githubGetFiles({ path: `${path}/${filename}`, repo: RepoNames.sync })
+        const githubRepo2 = await getSyncRepoName('github')
+        files = await githubGetFiles({ path: `${path}/${filename}`, repo: githubRepo2 })
         break;
       case 'gitee':
-        files = await giteeGetFiles({ path: `${path}/${filename}`, repo: RepoNames.sync })
+        const giteeRepo2 = await getSyncRepoName('gitee')
+        files = await giteeGetFiles({ path: `${path}/${filename}`, repo: giteeRepo2 })
         break;
       case 'gitlab':
-        files = await gitlabGetFileContent({ path: `${path}/${filename}`, ref: 'main', repo: RepoNames.sync })
+        const gitlabRepo2 = await getSyncRepoName('gitlab')
+        files = await gitlabGetFileContent({ path: `${path}/${filename}`, ref: 'main', repo: gitlabRepo2 })
         break;
     }
     if (files) {

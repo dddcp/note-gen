@@ -1,8 +1,9 @@
 import { decodeBase64ToString, getFiles as getGithubFiles } from '@/lib/github'
-import { GithubContent, RepoNames } from '@/lib/github.types'
+import { GithubContent } from '@/lib/github.types'
 import { getFiles as getGiteeFiles } from '@/lib/gitee'
 import { getFiles as getGitlabFiles, getFileContent as getGitlabFileContent } from '@/lib/gitlab'
 import { GiteeFile } from '@/lib/gitee'
+import { getSyncRepoName } from '@/lib/repo-utils'
 import { getCurrentFolder } from '@/lib/path'
 import useVectorStore from './vector'
 import { join } from '@tauri-apps/api/path'
@@ -74,6 +75,17 @@ interface NoteState {
   readArticle: (path: string, sha?: string, isLocale?: boolean) => Promise<void>
   setCurrentArticle: (content: string) => void
   saveCurrentArticle: (content: string) => Promise<void>
+
+  // 向量计算相关
+  vectorCalcTimer: NodeJS.Timeout | null
+  vectorCalcProgressInterval: NodeJS.Timeout | null
+  vectorCalcProgress: number
+  isVectorCalculating: boolean
+  lastEditTime: number
+  pendingVectorContent: { path: string; content: string } | null
+  scheduleVectorCalculation: (path: string, content: string) => void
+  executeVectorCalculation: () => Promise<void>
+  cancelVectorCalculation: () => void
 
   allArticle: Article[]
   loadAllArticle: () => Promise<void>
@@ -338,13 +350,16 @@ const useArticleStore = create<NoteState>((set, get) => ({
       let files;
       switch (primaryBackupMethod) {
         case 'github':
-          files = await getGithubFiles({ path, repo: RepoNames.sync });
+          const githubRepo = await getSyncRepoName('github');
+          files = await getGithubFiles({ path, repo: githubRepo });
           break;
         case 'gitee':
-          files = await getGiteeFiles({ path, repo: RepoNames.sync });
+          const giteeRepo = await getSyncRepoName('gitee');
+          files = await getGiteeFiles({ path, repo: giteeRepo });
           break;
         case 'gitlab':
-          files = await getGitlabFiles({ path, repo: RepoNames.sync });
+          const gitlabRepo = await getSyncRepoName('gitlab');
+          files = await getGitlabFiles({ path, repo: gitlabRepo });
           break;
       }
 
@@ -415,13 +430,16 @@ const useArticleStore = create<NoteState>((set, get) => ({
     let files;
     switch (primaryBackupMethod) {
       case 'github':
-        files = await getGithubFiles({ path: fullpath, repo: RepoNames.sync });
+        const githubRepo1 = await getSyncRepoName('github');
+        files = await getGithubFiles({ path: fullpath, repo: githubRepo1 });
         break;
       case 'gitee':
-        files = await getGiteeFiles({ path: fullpath, repo: RepoNames.sync });
+        const giteeRepo1 = await getSyncRepoName('gitee');
+        files = await getGiteeFiles({ path: fullpath, repo: giteeRepo1 });
         break;
       case 'gitlab':
-        files = await getGitlabFiles({ path: fullpath, repo: RepoNames.sync });
+        const gitlabRepo1 = await getSyncRepoName('gitlab');
+        files = await getGitlabFiles({ path: fullpath, repo: gitlabRepo1 });
         break;
     }
     
@@ -705,13 +723,16 @@ const useArticleStore = create<NoteState>((set, get) => ({
           let content = '';
           switch (primaryBackupMethod) {
             case 'github':
-              content = decodeBase64ToString(await getGithubFiles({ path, repo: RepoNames.sync }))
+              const githubRepo2 = await getSyncRepoName('github');
+              content = decodeBase64ToString(await getGithubFiles({ path, repo: githubRepo2 }))
               break;
             case 'gitee':
-              content = decodeBase64ToString(await getGiteeFiles({ path, repo: RepoNames.sync }))
+              const giteeRepo2 = await getSyncRepoName('gitee');
+              content = decodeBase64ToString(await getGiteeFiles({ path, repo: giteeRepo2 }))
               break;
             case 'gitlab':
-              content = decodeBase64ToString((await getGitlabFileContent({ path, ref: 'main', repo: RepoNames.sync })).content)
+              const gitlabRepo2 = await getSyncRepoName('gitlab');
+              content = decodeBase64ToString((await getGitlabFileContent({ path, ref: 'main', repo: gitlabRepo2 })).content)
               break;
             default:
               break;
@@ -729,13 +750,16 @@ const useArticleStore = create<NoteState>((set, get) => ({
       let res;
       switch (primaryBackupMethod) {
         case 'github':
-          res = await getGithubFiles({ path, repo: RepoNames.sync })
+          const githubRepo3 = await getSyncRepoName('github');
+          res = await getGithubFiles({ path, repo: githubRepo3 })
           break;
         case 'gitee':
-          res = await getGiteeFiles({ path, repo: RepoNames.sync })
+          const giteeRepo3 = await getSyncRepoName('gitee');
+          res = await getGiteeFiles({ path, repo: giteeRepo3 })
           break;
         case 'gitlab':
-          res = await getGitlabFileContent({ path, ref: 'main', repo: RepoNames.sync })
+          const gitlabRepo3 = await getSyncRepoName('gitlab');
+          res = await getGitlabFileContent({ path, ref: 'main', repo: gitlabRepo3 })
           break;
         default:
           break;
@@ -746,9 +770,18 @@ const useArticleStore = create<NoteState>((set, get) => ({
     get().setLoading(false)
   },
 
+  // 向量计算相关状态
+  vectorCalcTimer: null as NodeJS.Timeout | null,
+  vectorCalcProgressInterval: null as NodeJS.Timeout | null,
+  vectorCalcProgress: 0, // 0-100，表示距离自动计算的进度
+  isVectorCalculating: false,
+  lastEditTime: 0,
+  pendingVectorContent: null as { path: string; content: string } | null,
+
   setCurrentArticle: (content: string) => {
     set({ currentArticle: content })
   },
+  
   saveCurrentArticle: async (content: string) => {
     if (content) {
       const path = get().activeFilePath
@@ -805,21 +838,112 @@ const useArticleStore = create<NoteState>((set, get) => ({
         set({ fileTree: cacheTree })
       }
       
-      // 如果文件是Markdown文件，且向量数据库已启用，则更新向量
+      // 触发防抖向量计算（不再直接计算）
       if (path.endsWith('.md')) {
-        try {
-          // 访问向量存储
-          const vectorStore = useVectorStore.getState()
-          // 如果向量数据库已启用，更新向量
-          if (vectorStore.isVectorDbEnabled) {
-            // 异步处理文档向量，无需等待完成
-            vectorStore.processDocument(path, content)
-          }
-        } catch (error) {
-          console.error('更新文档向量失败:', error)
-        }
+        get().scheduleVectorCalculation(path, content)
       }
     }
+  },
+
+  // 安排向量计算（防抖5秒）
+  scheduleVectorCalculation: (path: string, content: string) => {
+    const state = get()
+    
+    // 清除之前的定时器
+    if (state.vectorCalcTimer) {
+      clearTimeout(state.vectorCalcTimer)
+    }
+    if (state.vectorCalcProgressInterval) {
+      clearInterval(state.vectorCalcProgressInterval)
+    }
+    
+    // 更新最后编辑时间和待处理内容
+    const now = Date.now()
+    set({ 
+      lastEditTime: now,
+      pendingVectorContent: { path, content },
+      vectorCalcProgress: 0
+    })
+    
+    // 创建进度更新定时器（每100ms更新一次进度）
+    const progressInterval = setInterval(() => {
+      const elapsed = Date.now() - get().lastEditTime
+      const progress = Math.min((elapsed / 5000) * 100, 100)
+      set({ vectorCalcProgress: progress })
+      
+      if (progress >= 100) {
+        clearInterval(progressInterval)
+      }
+    }, 100)
+    
+    // 设置5秒后自动执行向量计算
+    const timer = setTimeout(() => {
+      clearInterval(progressInterval)
+      get().executeVectorCalculation()
+    }, 5000)
+    
+    set({ 
+      vectorCalcTimer: timer as any,
+      vectorCalcProgressInterval: progressInterval as any
+    })
+  },
+
+  // 执行向量计算
+  executeVectorCalculation: async () => {
+    const state = get()
+    
+    // 如果没有待处理内容或正在计算中，直接返回
+    if (!state.pendingVectorContent || state.isVectorCalculating) {
+      return
+    }
+    
+    try {
+      set({ isVectorCalculating: true, vectorCalcProgress: 100 })
+      
+      const { path, content } = state.pendingVectorContent
+      const vectorStore = useVectorStore.getState()
+      
+      // 如果向量数据库已启用，执行向量计算
+      if (vectorStore.isVectorDbEnabled) {
+        await vectorStore.processDocument(path, content)
+      }
+      
+      // 清除待处理内容和定时器
+      if (state.vectorCalcTimer) {
+        clearTimeout(state.vectorCalcTimer)
+      }
+      if (state.vectorCalcProgressInterval) {
+        clearInterval(state.vectorCalcProgressInterval)
+      }
+      
+      set({ 
+        pendingVectorContent: null,
+        vectorCalcTimer: null,
+        vectorCalcProgressInterval: null,
+        vectorCalcProgress: 0
+      })
+    } catch (error) {
+      console.error('执行向量计算失败:', error)
+    } finally {
+      set({ isVectorCalculating: false })
+    }
+  },
+
+  // 取消向量计算
+  cancelVectorCalculation: () => {
+    const state = get()
+    if (state.vectorCalcTimer) {
+      clearTimeout(state.vectorCalcTimer)
+    }
+    if (state.vectorCalcProgressInterval) {
+      clearInterval(state.vectorCalcProgressInterval)
+    }
+    set({ 
+      vectorCalcTimer: null,
+      vectorCalcProgressInterval: null,
+      vectorCalcProgress: 0,
+      pendingVectorContent: null
+    })
   },
 
   allArticle: [],

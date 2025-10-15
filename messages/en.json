@@ -71,6 +71,61 @@
       "resetToDefaults": "Reset to defaults",
       "deleteVector": "Clear knowledge base"
     },
+    "mcp": {
+      "title": "MCP",
+      "desc": "Model Context Protocol allows AI to call external tools and access resources, extending AI capabilities.",
+      "enableTitle": "Enable MCP",
+      "enableDesc": "When enabled, AI can call tools provided by configured MCP servers.",
+      "servers": "Server List",
+      "serversDesc": "Manage MCP server configurations. Each server can provide different tools and resources.",
+      "addServer": "Add Server",
+      "addFirstServer": "Add First Server",
+      "editServer": "Edit Server",
+      "serverName": "Server Name",
+      "serverNamePlaceholder": "e.g., File System Server",
+      "serverEnabled": "Enable Server",
+      "serverEnabledDesc": "When enabled, this server will automatically connect and provide tools.",
+      "serverType": "Server Type",
+      "stdio": "Local Command",
+      "http": "HTTP Service",
+      "command": "Command",
+      "args": "Arguments",
+      "argsDesc": "Command line arguments, separated by spaces",
+      "env": "Environment Variables",
+      "envDesc": "Environment variable configuration in JSON format",
+      "url": "Service URL",
+      "headers": "Request Headers",
+      "headersDesc": "HTTP request headers in JSON format",
+      "testConnection": "Test Connection",
+      "test": "Test",
+      "testSuccess": "Connection test successful",
+      "testFailed": "Connection test failed",
+      "connected": "Connected",
+      "connecting": "Connecting",
+      "disconnected": "Disconnected",
+      "error": "Error",
+      "tools": "Tools",
+      "noServers": "MCP service not enabled",
+      "noServersFound": "No matching servers found",
+      "serverAdded": "Server added successfully",
+      "serverUpdated": "Server updated successfully",
+      "serverDeleted": "Server deleted successfully",
+      "deleteServerTitle": "Delete Server",
+      "deleteServerDesc": "Are you sure you want to delete this server? This action cannot be undone.",
+      "nameRequired": "Please enter server name",
+      "commandRequired": "Please enter command",
+      "urlRequired": "Please enter service URL",
+      "toolBrowser": "Tool Browser",
+      "searchTools": "Search tools...",
+      "noToolsFound": "No tools found",
+      "parameters": "Parameters",
+      "testAll": "Test All Connections",
+      "testAllCompleted": "All connection tests completed",
+      "testAllFailed": "Connection test failed",
+      "save": "Save",
+      "cancel": "Cancel",
+      "delete": "Delete"
+    },
     "editor": {
       "title": "Markdown Editor",
       "desc": "Here, you can customize the Markdown editor, creating a writing experience tailored to your needs.",
@@ -231,19 +286,27 @@
       "imageRepoSetting": "Local/Cloud Storage",
       "imageRepoSettingDesc": "You have already configured an image repository, you can choose to use the image repository or use local storage.",
       "jsdelivrSetting": "jsDelivr",
-      "jsdelivrSettingDesc": "Use jsdelivr to speed up image access.",
-      "autoSync": "Auto Sync",
+      "autoSyncDesc": "When enabled, the editor will automatically sync to GitHub 10 seconds after input stops",
       "giteeAutoSyncDesc": "When enabled, the editor will automatically sync to Gitee 10 seconds after input stops",
+      "customSyncRepo": "Custom Sync Repository Name",
+      "customSyncRepoDesc": "Leave empty to use default repository name",
+      "customImageRepo": "Custom Image Repository Name",
+      "customImageRepoDesc": "Leave empty to use default repository name",
       "backupMethod": "Backup Method",
       "backupMethodDesc": "After setting as the primary backup method, all sync-related functions in writing will use the current backup method (except for image hosting)",
       "isPrimaryBackup": "{type} is current primary backup",
       "setPrimaryBackup": "Set as Primary Backup",
+      "createRepo": "Create Repository",
+      "creating": "Creating",
+      "checkRepo": "Check Repository",
+      "checking": "Checking",
+      "defaultRepoName": "Default: {name}",
       "gitlabInstanceType": "GitLab Instance Type",
-      "gitlabInstanceTypeDesc": "Select the GitLab instance type to connect to",
-      "gitlabInstanceTypePlaceholder": "Select GitLab instance type",
+      "gitlabInstanceTypeDesc": "Select the type of GitLab instance to connect to",
+      "gitlabInstanceTypePlaceholder": "Select GitLab Instance Type",
       "gitlabInstanceTypeOptions": {
-        "selfHosted": "Self-hosted instance",
-        "selfHostedDesc": "Enter your self-hosted GitLab server address (e.g. https://gitlab.example.com)"
+        "selfHosted": "Self-hosted Instance",
+        "selfHostedDesc": "Enter your self-hosted GitLab server address (e.g., https://gitlab.example.com)"
       },
       "gitlabAccessTokenDesc": "Create a personal access token in {instanceDisplayName}, requires api permission",
       "autoSyncOptions": {
@@ -258,7 +321,9 @@
     },
     "imageHosting": {
       "title": "Image Hosting",
-      "desc": "Here, you can configure image hosting, uploading images to the image hosting service.",
+      "desc": "Here, you can configure image hosting services for storing and managing your images.",
+      "customRepoName": "Custom Repository Name",
+      "customRepoNameDesc": "Leave empty to use default repository name",
       "isPrimaryBackup": "Current {type} primary image hosting method",
       "setPrimaryBackup": "Set as Primary Image Hosting",
       "smms": {
@@ -273,6 +338,30 @@
         "desc": "PicGo server URL",
         "ok": "Service is running, please ensure PicGo image hosting is configured.",
         "error": "Service is not running, please ensure PicGo (v2.2.0+) is running, otherwise image upload will fail."
+      },
+      "github": {
+        "title": "GitHub Image Hosting",
+        "description": "Use GitHub repository as image storage service",
+        "repoStatus": "Repository Status",
+        "repoExists": "Repository Exists",
+        "repoNotExists": "Repository Not Found",
+        "checking": "Checking",
+        "creating": "Creating",
+        "manualCreateTitle": "Manual Repository Creation Required",
+        "manualCreateDesc": "Please follow these steps to create the image hosting repository:",
+        "createSteps": {
+          "step1": "Visit GitHub and log in to your account",
+          "step2": "Click the \"+\" button in the top right corner, select \"New repository\"",
+          "step3": "Set repository name to:",
+          "step4": "Optionally set as private repository (recommended)",
+          "step5": "Click \"Create repository\" to complete creation",
+          "step6": "After creation, click the \"Recheck\" button below"
+        },
+        "createNewRepo": "Create New Repository",
+        "recheckRepo": "Recheck",
+        "recheckingRepo": "Checking...",
+        "createRepo": "Create Repository",
+        "creatingRepo": "Creating..."
       },
       "s3": {
         "title": "S3 Object Storage",
@@ -446,8 +535,14 @@
       "modelTitle": "Custom Name",
       "modelConfigTitle": "Model Config",
       "modelConfigDesc": "Every configuration corresponds to an AI model, you can create new configurations through templates or custom.",
+      "providerInfo": "Provider Information",
+      "providerInfoDesc": "This configuration is created based on a provider template, with name and URL pre-configured.",
       "create": "Create",
       "createDesc": "Select an empty configuration or create a new configuration using the supplier template.",
+      "createSection": {
+        "title": "Custom Model Configuration",
+        "descWithoutModels": "Add custom AI model configurations to use more powerful model services."
+      },
       "config": "Config",
       "custom": "Custom",
       "addCustomModel": "Custom",
@@ -482,10 +577,33 @@
       "topPDesc": "A nucleus sampling method, where the model considers the results of tokens with top_p probability mass. So 0.1 means only consider the top 10% probability mass. Usually we suggest to change this or temperature but not both.",
       "customHeaders": "Custom Headers",
       "customHeadersDesc": "Add custom HTTP headers with key-value pairs.",
-      "connectionSuccess": "AI connection test passed",
       "headerKey": "Key",
       "headerValue": "Value",
-      "addHeader": "Add Header"
+      "addHeader": "Add Header",
+      "connectionSuccess": "AI connection test passed",
+      "voice": "Voice Type",
+      "voiceDesc": "Specify the voice type for audio models, such as 'alloy', 'echo', 'fable', etc.",
+      "voicePlaceholder": "Enter voice type, e.g.: alloy",
+      "defaultModels": {
+        "title": "Default Free Models",
+        "desc": "NoteGen provides free AI model services for users, enabling basic functionality without configuration.",
+        "chatModel": {
+          "name": "Qwen/Qwen3-8B",
+          "type": "Chat Model",
+          "desc": "Suitable for daily conversations and text generation"
+        },
+        "embeddingModel": {
+          "name": "BAAI/bge-m3",
+          "type": "Embedding Model",
+          "desc": "Used for text vectorization and semantic search"
+        },
+        "visionModel": {
+          "name": "THUDM/GLM-4.1V-9B-Thinking",
+          "type": "Vision Model",
+          "desc": "Supports image understanding and OCR recognition"
+        },
+        "poweredBy": "Powered by SiliconFlow"
+      }
     },
     "ocr": {
       "title": "OCR",
@@ -656,16 +774,28 @@
           "messageControl": {
             "words": "words"
           },
+          "mcp": {
+            "maxIterationsReached": "Maximum tool call iterations reached",
+            "toolCall": "MCP Server",
+            "params": "Parameters",
+            "result": "Result",
+            "copy": "Copy",
+            "paramsCopied": "Parameters copied",
+            "resultCopied": "Result copied",
+            "calling": "Calling",
+            "success": "Completed",
+            "error": "Failed"
+          },
           "empty": {
             "features": [
               {
                 "chat": "Chat with AI bot"
               },
               {
-                "linked": "Linked with your records"
+                "linked": "Linked with your records or notes"
               },
               {
-                "clipboard": "Recognize clipboard records"
+                "clipboard": "Recognize clipboard records or images"
               },
               {
                 "organize": "Organize your records into notes"
@@ -748,7 +878,15 @@
         "sort": "Sort",
         "processingVectors": "Processing Vector Data",
         "calculateVectors": "Calculate Document Vectors",
-        "enableVectorDb": "Enable Vector Database"
+        "enableVectorDb": "Enable Vector Database",
+        "multiSelect": "Multi Select",
+        "exitMultiSelect": "Exit Multi Select",
+        "selectAll": "Select All",
+        "deselectAll": "Deselect All",
+        "selectedCount": "Selected {count} items",
+        "moveSelectedTags": "Move selected {count} items",
+        "deleteSelected": "Delete selected {count} items",
+        "deleteSelectedForever": "Delete selected {count} items forever"
       }
     },
     "chat": {
@@ -758,10 +896,10 @@
             "chat": "Chat with AI bot"
           },
           {
-            "linked": "Linked with your records"
+            "linked": "Linked with your records or notes"
           },
           {
-            "clipboard": "Recognize clipboard records"
+            "clipboard": "Recognize clipboard records or images"
           },
           {
             "organize": "Organize your records into notes"
@@ -829,7 +967,8 @@
         },
         "modelSelect": {
           "tooltip": "Select AI model",
-          "placeholder": "Search AI models"
+          "placeholder": "Search AI models",
+          "noModel": "No model found"
         },
         "promptSelect": {
           "tooltip": "Select prompt",
@@ -866,7 +1005,8 @@
       "header": {
         "configApiKey": "Configure API KEY",
         "clearChat": "Clear Chat",
-        "selectPrompt": "Select Prompt"
+        "selectPrompt": "Select Prompt",
+        "noModel": "AI model not selected"
       },
       "clipboard": {
         "image": {
@@ -889,6 +1029,9 @@
         "stop": "Stop Playing",
         "copy": "Copy",
         "copied": "Copied"
+      },
+      "ragSources": {
+        "label": "Referenced Files"
       },
       "preview": {
         "close": "Close",
@@ -985,7 +1128,12 @@
         "sort": "Sort",
         "processingVectors": "Processing Vector Data",
         "calculateVectors": "Knowledge Base Calculation (Full)",
-        "enableVectorDb": "Enable Vector Database"
+        "enableVectorDb": "Enable Vector Database",
+        "importMarkdown": "Import",
+        "importing": "Importing...",
+        "importSuccess": "Import Successful",
+        "importSuccessDesc": "Successfully imported {count} files",
+        "importError": "Import Failed"
       },
       "context": {
         "viewDirectory": "View Directory",
@@ -1133,7 +1281,27 @@
         "committedAt": "committed at",
         "pull": "Pull",
         "quickSync": "Quick Sync"
+      },
+      "vectorCalc": {
+        "tooltip": "Vector Calculation: Auto-calculate 30s after editing, or click to calculate now",
+        "calculating": "Calculating",
+        "pending": "Pending {progress}%",
+        "synced": "Synced"
       }
     }
+  },
+  "mcp": {
+    "selectServers": "MCP Servers",
+    "searchServers": "Search servers...",
+    "noServers": "MCP service not enabled",
+    "noServersFound": "No matching servers found",
+    "addServer": "Add server...",
+    "goToSettings": "Go to Settings",
+    "close": "Close",
+    "navigate": "Select",
+    "confirm": "Confirm",
+    "tools": "tools",
+    "connecting": "Connecting",
+    "disconnected": "Disconnected"
   }
 }

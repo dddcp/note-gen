@@ -14,7 +14,8 @@ import {
   Book,
   KeyboardIcon,
   Volume2,
-  Settings
+  Settings,
+  Puzzle
 } from "lucide-react"
 
 const baseConfig = [
@@ -51,6 +52,10 @@ const baseConfig = [
   {
     icon: <Book className="size-4 md:size-6" />,
     anchor: 'rag',
+  },
+  {
+    icon: <Puzzle className="size-4 md:size-6" />,
+    anchor: 'mcp',
   },
   {
     icon: <Drama className="size-4 md:size-6" />,
@@ -92,20 +97,33 @@ export default baseConfig
 
 export type ModelType = 'chat' | 'image' | 'video' | 'audio' | 'embedding' | 'rerank';
 
+export interface ModelConfig {
+  id: string
+  model: string
+  modelType: ModelType
+  temperature?: number
+  topP?: number
+  voice?: string
+  enableStream?: boolean
+}
+
 export interface AiConfig {
   key: string
   title: string
-  temperature?: number
-  topP?: number
   apiKey?: string
-  model?: string
   baseURL?: string
-  modelType?: ModelType
   icon?: string
   apiKeyUrl?: string
   customHeaders?: Record<string, string>
+  models?: ModelConfig[]
+  // 保持向后兼容
+  model?: string
+  temperature?: number
+  topP?: number
+  modelType?: ModelType
   voice?: string
   speed?: number
+  enableStream?: boolean
 }
 
 export interface Model {
@@ -117,6 +135,13 @@ export interface Model {
 
 // Define base AI configuration without translations
 const baseAiConfig: AiConfig[] = [
+  {
+    key: 'siliconflow',
+    title: 'SiliconFlow',
+    baseURL: 'https://api.siliconflow.cn/v1',
+    icon: 'https://s2.loli.net/2025/09/09/D8Al2raSvewN5xn.jpg',
+    apiKeyUrl: 'https://cloud.siliconflow.cn/i/O2ciJeZw'
+  },
   {
     key: 'chatgpt',
     title: 'ChatGPT',
@@ -158,13 +183,6 @@ const baseAiConfig: AiConfig[] = [
     apiKeyUrl: 'https://platform.deepseek.com/api_keys'
   },
   {
-    key: '302',
-    title: '302.AI',
-    baseURL: 'https://api.302.ai/v1',
-    icon: 'https://s2.loli.net/2025/06/26/4CJOQ2U9ibvoGpR.png',
-    apiKeyUrl: 'https://share.302.ai/jfFrIP'
-  },
-  {
     key: 'openrouter',
     title: 'OpenRouter',
     baseURL: 'https://openrouter.ai/api/v1',
@@ -172,11 +190,32 @@ const baseAiConfig: AiConfig[] = [
     apiKeyUrl: 'https://openrouter.ai/api-keys'
   },
   {
-    key: 'siliconflow',
-    title: 'SiliconFlow',
-    baseURL: 'https://api.siliconflow.cn/v1',
-    icon: 'https://s2.loli.net/2025/06/25/pPAmrXclsMUZV9o.png',
-    apiKeyUrl: 'https://cloud.siliconflow.cn/i/O2ciJeZw'
+    key: 'qiniu',
+    title: '七牛云',
+    baseURL: 'https://openai.qiniu.com/v1',
+    icon: 'https://s2.loli.net/2025/09/15/ALjNPveWrtmsfOY.png',
+    apiKeyUrl: 'https://s.qiniu.com/Znm6je'
+  },
+  {
+    key: '302',
+    title: '302.AI',
+    baseURL: 'https://api.302.ai/v1',
+    icon: 'https://s2.loli.net/2025/06/26/4CJOQ2U9ibvoGpR.png',
+    apiKeyUrl: 'https://share.302.ai/jfFrIP'
+  },
+  {
+    key: 'shengsuanyun',
+    title: '胜算云',
+    baseURL: 'https://router.shengsuanyun.com/api/v1',
+    icon: 'https://s2.loli.net/2025/09/15/4qjswKyaRfZ8OxW.png',
+    apiKeyUrl: 'https://www.shengsuanyun.com/?from=CH_KAFLGC9O'
+  },
+  {
+    key: 'gitee',
+    title: 'Gitee AI',
+    baseURL: 'https://ai.gitee.com/v1',
+    icon: 'https://s2.loli.net/2025/09/15/ih7aTnGPvELFsVc.png',
+    apiKeyUrl: 'https://ai.gitee.com/'
   },
 ]
 

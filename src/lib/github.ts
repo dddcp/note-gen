@@ -1,7 +1,7 @@
 import { toast } from '@/hooks/use-toast';
 import { Store } from '@tauri-apps/plugin-store';
 import { v4 as uuid } from 'uuid';
-import { GithubError, GithubRepoInfo, OctokitResponse, RepoNames } from './github.types';
+import { GithubError, GithubRepoInfo, OctokitResponse } from './github.types';
 import { fetch, Proxy } from '@tauri-apps/plugin-http'
 
 export function uint8ArrayToBase64(data: Uint8Array) {
@@ -50,7 +50,7 @@ interface Links {
 
 export async function uploadFile(
   { ext, file, filename, sha, message, repo, path }:
-  { ext: string, file: string, filename?: string, sha?: string, message?: string, repo: RepoNames, path?: string }) 
+  { ext: string, file: string, filename?: string, sha?: string, message?: string, repo: string, path?: string }) 
 {
   const store = await Store.load('store.json');
   const accessToken = await store.get('accessToken')
@@ -71,7 +71,7 @@ export async function uploadFile(
       _filename = `${id}.${ext}`
     }
     // 将空格转换成下划线
-    _filename = _filename.replace(/\s/g, '_')
+    _filename = encodeURIComponent(_filename.replace(/\s/g, '_'))
     const _path = path ? `/${path}`: ''
     
     // 设置请求头
@@ -118,13 +118,13 @@ export async function uploadFile(
   }
 }
 
-export async function getFiles({ path, repo }: { path: string, repo: RepoNames }) {
+export async function getFiles({ path, repo }: { path: string, repo: string }) {
   const store = await Store.load('store.json');
   const accessToken = await store.get('accessToken')
   if (!accessToken) return;
   
   const githubUsername = await store.get('githubUsername')
-  path = path.replace(/\s/g, '_')
+  path = encodeURIComponent(path.replace(/\s/g, '_'))
   
   // 获取代理设置
   const proxyUrl = await store.get<string>('proxy')
@@ -171,7 +171,7 @@ export async function getFiles({ path, repo }: { path: string, repo: RepoNames }
 
 export async function deleteFile(
   { path, sha, repo, token, username }: 
-  { path: string, sha: string, repo: RepoNames, token?: string, username?: string }
+  { path: string, sha: string, repo: string, token?: string, username?: string }
 ) {
   const store = await Store.load('store.json');
   const accessToken = token || await store.get('accessToken')
@@ -203,7 +203,7 @@ export async function deleteFile(
       proxy
     };
     
-    const url = `https://api.github.com/repos/${githubUsername}/${repo}/contents/${path}`;
+    const url = `https://api.github.com/repos/${githubUsername}/${repo}/contents/${encodeURIComponent(path)}`;
     const response = await fetch(url, requestOptions);
     
     if (response.status >= 200 && response.status < 300) {
@@ -217,14 +217,14 @@ export async function deleteFile(
   }
 }
 
-export async function getFileCommits({ path, repo }: { path: string, repo: RepoNames }) {
+export async function getFileCommits({ path, repo }: { path: string, repo: string }) {
   if (!path) return;
   const store = await Store.load('store.json');
   const accessToken = await store.get('accessToken')
   if (!accessToken) return;
   
   const githubUsername = await store.get('githubUsername')
-  path = path.replace(/\s/g, '_')
+  path = encodeURIComponent(path.replace(/\s/g, '_'))
   
   // 获取代理设置
   const proxyUrl = await store.get<string>('proxy')

@@ -14,6 +14,8 @@ import { invoke } from "@tauri-apps/api/core"
 import { MarkdownFile } from "@/lib/files"
 import { readTextFile } from "@tauri-apps/plugin-fs"
 import { getFilePathOptions, getWorkspacePath } from "@/lib/workspace"
+import { useMcpStore } from "@/stores/mcp"
+import { getOpenAIFunctions } from "@/lib/mcp/tools"
 
 interface ChatSendProps {
   inputValue: string;
@@ -28,6 +30,7 @@ export const ChatSend = forwardRef<{ sendChat: () => void }, ChatSendProps>(({ i
   const { fetchMarks, marks } = useMarkStore()
   const { isLinkMark } = useChatStore()
   const { isRagEnabled } = useVectorStore()
+  const { selectedServerIds } = useMcpStore()
   const abortControllerRef = useRef<AbortController | null>(null)
   const t = useTranslations()
 
@@ -57,6 +60,7 @@ export const ChatSend = forwardRef<{ sendChat: () => void }, ChatSendProps>(({ i
       type: 'chat',
       inserted: false,
       image: undefined,
+      ragSources: undefined,
     })
     if (!message) return
 
@@ -71,6 +75,7 @@ export const ChatSend = forwardRef<{ sendChat: () => void }, ChatSendProps>(({ i
     
     // 准备请求内容
     let ragContext = ''
+    let ragSources: string[] = []
     let linkedFileContent = ''
     
     // 如果有关联文件，读取文件内容
@@ -101,7 +106,9 @@ ${linkedFileContent}
         // 基于TextRank算法提取前3个关键词
         const keywords = await invoke<{text: string, weight: number}[]>('rank_keywords', { text: inputValue, topK: 5 })
         // 获取相关文档内容
-        ragContext = await getContextForQuery(keywords)
+        const ragResult = await getContextForQuery(keywords)
+        ragContext = ragResult.context
+        ragSources = ragResult.sources
         
         if (ragContext) {
           // 如果获取到了相关内容，将其作为独立部分添加到请求中
@@ -144,11 +151,18 @@ ${ragContext}
     await saveChat({
       ...message,
       content: '',
+      ragSources: ragSources.length > 0 ? JSON.stringify(ragSources) : undefined,
     }, true)
     
     // 创建新的 AbortController 用于终止请求
     abortControllerRef.current = new AbortController()
     const signal = abortControllerRef.current.signal
+    
+    // 准备 MCP 工具（如果有选中的服务器）
+    let mcpTools: any[] | undefined
+    if (selectedServerIds.length > 0) {
+      mcpTools = getOpenAIFunctions(selectedServerIds)
+    }
     
     // 使用流式方式获取AI结果
     let cache_content = '';
@@ -160,7 +174,7 @@ ${ragContext}
           ...message,
           content
         }, false)
-      }, signal)
+      }, signal, mcpTools, t, message.id)
     } catch (error: any) {
       // 如果不是中止错误，则记录错误信息
       if (error.name !== 'AbortError') {
@@ -171,7 +185,8 @@ ${ragContext}
       setLoading(false)
       await saveChat({
         ...message,
-        content: cache_content
+        content: cache_content,
+        ragSources: ragSources.length > 0 ? JSON.stringify(ragSources) : undefined,
       }, true)
     }
   }

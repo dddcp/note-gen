@@ -14,6 +14,7 @@ import {
   ChevronsDownUp,
   ChevronsUpDown,
   BookA,
+  FolderInput,
 } from "lucide-react"
 import * as React from "react"
 import { TooltipButton } from "@/components/tooltip-button"
@@ -31,10 +32,20 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu"
 import useUsername from "@/hooks/use-username"
+import { open as openDialog } from '@tauri-apps/plugin-dialog'
+import { readDir, copyFile, mkdir, exists } from '@tauri-apps/plugin-fs'
+import { join } from '@tauri-apps/api/path'
+import { getWorkspacePath } from '@/lib/workspace'
+import { toast } from '@/hooks/use-toast'
 
 export function FileToolbar() {
   const { newFolder, loadFileTree, newFile, fileTreeLoading, sortType, setSortType, sortDirection, setSortDirection, toggleAllFolders, collapsibleList } = useArticleStore()
-  const { primaryBackupMethod } = useSettingStore()
+  const {
+    primaryBackupMethod,
+    githubCustomSyncRepo,
+    giteeCustomSyncRepo,
+    gitlabCustomSyncRepo
+  } = useSettingStore()
   const { processAllDocuments, isProcessing, isVectorDbEnabled, setVectorDbEnabled } = useVectorStore()
   const t = useTranslations('article.file.toolbar')
 
@@ -42,18 +53,128 @@ export function FileToolbar() {
 
   const debounceNewFile = debounce(newFile, 200)
   const debounceNewFolder = debounce(newFolder, 200)
+  const [isImporting, setIsImporting] = React.useState(false)
 
-  async function openFolder() {
+  const repoName = React.useMemo(() => {
     switch (primaryBackupMethod) {
       case 'github':
-        open(`https://github.com/${username}/${RepoNames.sync}`)
-        break;
+        return githubCustomSyncRepo.trim() || RepoNames.sync
       case 'gitee':
-        open(`https://gitee.com/${username}/${RepoNames.sync}`)
-        break;
+        return giteeCustomSyncRepo.trim() || RepoNames.sync
       case 'gitlab':
-        open(`https://gitlab.com/${username}/${RepoNames.sync}`)
-        break;
+        return gitlabCustomSyncRepo.trim() || RepoNames.sync
+      default:
+        return RepoNames.sync
+    }
+  }, [primaryBackupMethod, githubCustomSyncRepo, giteeCustomSyncRepo, gitlabCustomSyncRepo])
+
+  async function openFolder() {
+    if (!username || !primaryBackupMethod) return
+
+    const baseUrl = primaryBackupMethod === 'github'
+      ? 'https://github.com'
+      : primaryBackupMethod === 'gitee'
+        ? 'https://gitee.com'
+        : 'https://gitlab.com'
+
+    open(`${baseUrl}/${username}/${repoName}`)
+  }
+
+  // 递归复制文件夹中的所有 markdown 文件和图片
+  async function copyMarkdownFilesRecursively(
+    sourceDir: string,
+    targetDir: string,
+    relativePath: string = ''
+  ): Promise<number> {
+    let copiedCount = 0
+    
+    try {
+      const entries = await readDir(sourceDir)
+      
+      for (const entry of entries) {
+        // 跳过隐藏文件和文件夹
+        if (entry.name.startsWith('.')) {
+          continue
+        }
+        
+        const sourcePath = await join(sourceDir, entry.name)
+        const newRelativePath = relativePath ? await join(relativePath, entry.name) : entry.name
+        const targetPath = await join(targetDir, newRelativePath)
+        
+        if (entry.isDirectory) {
+          // 递归处理子文件夹
+          const subDirCopied = await copyMarkdownFilesRecursively(
+            sourcePath,
+            targetDir,
+            newRelativePath
+          )
+          copiedCount += subDirCopied
+        } else if (entry.isFile) {
+          // 检查是否是 markdown 文件或图片文件
+          const isMd = entry.name.endsWith('.md')
+          const isImage = /\.(jpg|jpeg|png|gif|bmp|webp|svg)$/i.test(entry.name)
+          
+          if (isMd || isImage) {
+            // 确保目标文件夹存在
+            const targetDirPath = relativePath ? await join(targetDir, relativePath) : targetDir
+            if (!(await exists(targetDirPath))) {
+              await mkdir(targetDirPath, { recursive: true })
+            }
+            
+            // 复制文件
+            await copyFile(sourcePath, targetPath)
+            copiedCount++
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Error copying files:', error)
+      throw error
+    }
+    
+    return copiedCount
+  }
+
+  async function handleImportMarkdown() {
+    try {
+      setIsImporting(true)
+      
+      // 打开文件夹选择对话框
+      const selectedPath = await openDialog({
+        directory: true,
+        multiple: false,
+        title: t('importMarkdown')
+      })
+      
+      if (!selectedPath) {
+        setIsImporting(false)
+        return
+      }
+      
+      // 获取工作区路径
+      const workspace = await getWorkspacePath()
+      const targetDir = workspace.isCustom ? workspace.path : await join(await import('@tauri-apps/api/path').then(m => m.appDataDir()), 'article')
+      
+      // 递归复制所有 markdown 文件和图片
+      const copiedCount = await copyMarkdownFilesRecursively(selectedPath as string, targetDir)
+      
+      // 刷新文件树
+      await loadFileTree()
+      
+      // 显示成功提示
+      toast({
+        title: t('importSuccess'),
+        description: t('importSuccessDesc', { count: copiedCount })
+      })
+    } catch (error) {
+      console.error('Import markdown error:', error)
+      toast({
+        title: t('importError'),
+        description: String(error),
+        variant: 'destructive'
+      })
+    } finally {
+      setIsImporting(false)
     }
   }
 
@@ -64,6 +185,13 @@ export function FileToolbar() {
         <TooltipButton icon={<FilePlus />} tooltipText={t('newArticle')} onClick={debounceNewFile} />
         {/* 新建文件夹 */}
         <TooltipButton icon={<FolderPlus />} tooltipText={t('newFolder')} onClick={debounceNewFolder} />
+        {/* 导入 Markdown */}
+        <TooltipButton 
+          icon={isImporting ? <LoaderCircle className="animate-spin size-4" /> : <FolderInput />} 
+          tooltipText={isImporting ? t('importing') : t('importMarkdown')} 
+          onClick={handleImportMarkdown}
+          disabled={isImporting}
+        />
         {/* 向量数据库 */}
         <TooltipButton 
           icon={isProcessing ? <LoaderCircle className="animate-spin size-4" /> : <BookA className={isVectorDbEnabled ? "text-primary" : ""} />} 

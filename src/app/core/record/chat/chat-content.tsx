@@ -18,6 +18,8 @@ import { Separator } from '@/components/ui/separator'
 import { scrollToBottom } from '@/lib/utils'
 import { Button } from '@/components/ui/button'
 import emitter from '@/lib/emitter'
+import { RagSources } from './rag-sources'
+import { McpToolCallCard } from './mcp-tool-call'
 
 export default function ChatContent() {
   const { chats, init } = useChatStore()
@@ -99,12 +101,24 @@ function MessageWrapper({ chat, children }: { chat: Chat, children: React.ReactN
 
 function Message({ chat }: { chat: Chat }) {
   const t = useTranslations()
-  const { deleteChat } = useChatStore()
+  const { deleteChat, getMcpToolCallsByChatId } = useChatStore()
   const content = chat.content?.includes('thinking') ? chat.content.split('<thinking>')[2] : chat.content
 
   const handleRemoveClearContext = () => {
     deleteChat(chat.id)
   }
+
+  // 解析 RAG 引用的文件名
+  const ragSources = chat.ragSources ? (() => {
+    try {
+      return JSON.parse(chat.ragSources) as string[]
+    } catch {
+      return []
+    }
+  })() : []
+  
+  // 获取该消息关联的 MCP 工具调用
+  const mcpToolCalls = getMcpToolCallsByChatId(chat.id)
 
   switch (chat.type) {
     case 'clear':
@@ -144,8 +158,17 @@ function Message({ chat }: { chat: Chat }) {
 
     default:
       return <MessageWrapper chat={chat}>
+        {/* MCP 工具调用展示 */}
+        {mcpToolCalls.length > 0 && (
+          <div className="space-y-4 mb-4">
+            {mcpToolCalls.map(toolCall => (
+              <McpToolCallCard key={toolCall.id} toolCall={toolCall} />
+            ))}
+          </div>
+        )}
         <ChatThinking chat={chat} />
         <ChatPreview text={content || ''} />
+        {chat.role === 'system' && <RagSources sources={ragSources} />}
         <MessageControl chat={chat}>
           {chat.role !== 'user' && <MarkText chat={chat} />}
         </MessageControl>
