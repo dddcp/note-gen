@@ -1,9 +1,10 @@
 import { toast } from "@/hooks/use-toast";
-import { fetchAi } from "@/lib/ai";
-import { decodeBase64ToString, getFileCommits as getGithubFileCommits, getFiles as getGithubFiles, uint8ArrayToBase64, uploadFile as uploadGithubFile } from "@/lib/github";
-import { getFileCommits as getGiteeFileCommits, getFiles as getGiteeFiles, uploadFile as uploadGiteeFile } from "@/lib/gitee";
-import { getFileContent as getGitlabFileContent, uploadFile as uploadGitlabFile, getFileCommits as getGitlabFileCommits } from "@/lib/gitlab";
-import { getSyncRepoName } from "@/lib/repo-utils";
+import { fetchAi } from "@/lib/ai/chat";
+import { decodeBase64ToString, getFileCommits as getGithubFileCommits, getFiles as getGithubFiles, uint8ArrayToBase64, uploadFile as uploadGithubFile } from "@/lib/sync/github";
+import { getFileCommits as getGiteeFileCommits, getFiles as getGiteeFiles, uploadFile as uploadGiteeFile } from "@/lib/sync/gitee";
+import { getFileContent as getGitlabFileContent, uploadFile as uploadGitlabFile, getFileCommits as getGitlabFileCommits } from "@/lib/sync/gitlab";
+import { uploadFile as uploadGiteaFile, getFiles as getGiteaFiles } from "@/lib/sync/gitea";
+import { getSyncRepoName } from "@/lib/sync/repo-utils";
 import useArticleStore from "@/stores/article";
 import { readFile } from "@tauri-apps/plugin-fs";
 import { diffWordsWithSpace } from 'diff';
@@ -18,13 +19,13 @@ import { getFilePathOptions } from "@/lib/workspace";
 import { useTranslations } from "next-intl";
 import useUsername from "@/hooks/use-username";
 
-export default function Sync({editor}: {editor?: Vditor}) {
+export default function Sync({editor, disabled}: {editor?: Vditor, disabled?: boolean}) {
   const { currentArticle } = useArticleStore()
-  const { accessToken, giteeAccessToken, gitlabAccessToken, autoSync, giteeAutoSync, gitlabAutoSync, primaryBackupMethod} = useSettingStore()
+  const { accessToken, giteeAccessToken, gitlabAccessToken, giteaAccessToken, autoSync, giteeAutoSync, gitlabAutoSync, giteaAutoSync, primaryBackupMethod} = useSettingStore()
   const [isLoading, setIsLoading] = useState(false)
   const syncTimeoutRef = useRef<number | null>(null)
   const t = useTranslations('article.footer.sync')
-  const [syncText, setSyncText] = useState(t('sync'))
+  const [syncText, setSyncText] = useState(t('push'))
   const [progressPercentage, setProgressPercentage] = useState(0)
   const progressIntervalRef = useRef<number | null>(null)
   const username = useUsername()
@@ -61,7 +62,7 @@ export default function Sync({editor}: {editor?: Vditor}) {
             const githubCommits = await getGithubFileCommits({ path: activeFilePath, repo: githubRepo });
             if (githubCommits?.length > 0) {
               const lastCommit = githubCommits[0];
-              const githubContent = await getGithubFiles({path: `${activeFilePath}?ref=${lastCommit.sha}`, repo: githubRepo});
+              const githubContent = await getGithubFiles({path: activeFilePath, repo: githubRepo, ref: lastCommit.sha});
               if (githubContent?.content) {
                 contentText = decodeBase64ToString(githubContent.content);
               }
@@ -84,6 +85,19 @@ export default function Sync({editor}: {editor?: Vditor}) {
             const { content } = await getGitlabFileContent({path: activeFilePath, ref: 'main', repo: gitlabRepo});
             contentText = decodeBase64ToString(content);
             break;
+          case 'gitea':
+            const giteaRepo = await getSyncRepoName('gitea');
+            try {
+              // 尝试获取当前分支的文件内容
+              const giteaFileInfo = await getGiteaFiles({path: activeFilePath, repo: giteaRepo});
+              // getFiles 对单个文件返回对象，对目录返回数组
+              if (giteaFileInfo && !Array.isArray(giteaFileInfo) && giteaFileInfo.content) {
+                contentText = decodeBase64ToString(giteaFileInfo.content);
+              }
+            } catch {
+              // 如果文件不存在（首次上传），跳过
+            }
+            break;
         } 
         // 如果有历史内容，使用AI分析差异并生成提交信息
         if (contentText) {
@@ -96,7 +110,7 @@ export default function Sync({editor}: {editor?: Vditor}) {
             删除了内容：${removeDiff}
             对比后对本次修改返回一条标准的提交描述，仅返回描述内容，字数不能超过50个字。
           `;
-          const aiMessage = await fetchAi(text);
+          const aiMessage = await fetchAi(text, 'commit');
           if (!aiMessage.includes('请求失败')) {
             message = aiMessage;
           }
@@ -115,8 +129,18 @@ export default function Sync({editor}: {editor?: Vditor}) {
         res = await getGiteeFiles({path: activeFilePath, repo: giteeRepo2});
       } else if (backupMethod === 'gitlab') {
         const gitlabRepo2 = await getSyncRepoName('gitlab');
-        const { data } = await getGitlabFileCommits({path: activeFilePath, repo: gitlabRepo2});
-        res = { sha: data?.[0]?.id };
+        const gitlabRes = await getGitlabFileCommits({path: activeFilePath, repo: gitlabRepo2});
+        if (gitlabRes && gitlabRes.data) {
+          res = { sha: gitlabRes.data[0]?.id };
+        }
+      } else if (backupMethod === 'gitea') {
+        const giteaRepo2 = await getSyncRepoName('gitea');
+        // Gitea 使用 getFiles API 获取文件 SHA，类似 GitHub/Gitee
+        const giteaRes = await getGiteaFiles({path: activeFilePath, repo: giteaRepo2});
+        // getFiles 对单个文件返回对象
+        if (giteaRes && !Array.isArray(giteaRes)) {
+          res = giteaRes;
+        }
       }
       
       if (res) {
@@ -165,15 +189,49 @@ export default function Sync({editor}: {editor?: Vditor}) {
             repo: gitlabRepo3
           });
           break;
+        case 'gitea':
+          const giteaRepo3 = await getSyncRepoName('gitea');
+          uploadRes = await uploadGiteaFile({
+            ext: 'md',
+            file: uint8ArrayToBase64(file),
+            filename: `${_path && _path + '/'}${filename}`,
+            sha,
+            message,
+            repo: giteaRepo3
+          });
+          break;
         default:
           break;
       }
       // 检查上传结果并更新状态
       if (uploadRes?.data?.commit?.message || uploadRes?.data?.file_path) {
-        setSyncText(t('synced'));
+        setSyncText(t('pushed'));
         emitter.emit('sync-success');
+
+        // 推送成功后，更新本地文件树状态
+        const { loadFileTree } = useArticleStore.getState()
+        await loadFileTree()
+
+        // 推送成功后，更新本地文件的同步时间
+        const { updateFileSyncTime } = await import('@/lib/sync/conflict-resolution')
+        await updateFileSyncTime(activeFilePath)
+        
+        // 发送最新 commit 信息给 Pull 组件，清除拉取状态
+        if (uploadRes?.data?.commit?.sha) {
+          const commitInfo = {
+            sha: uploadRes.data.commit.sha,
+            message: uploadRes.data.commit.message || message,
+            author: uploadRes.data.commit.author?.name || 'User',
+            date: new Date(uploadRes.data.commit.author?.date || Date.now()),
+            additions: uploadRes.data.commit.stats?.additions,
+            deletions: uploadRes.data.commit.stats?.deletions,
+            isOwnPush: true  // 标记这是自己刚刚推送的
+          }
+          emitter.emit('latest-commit-info', commitInfo)
+        }
+        
         setTimeout(() => {
-          setSyncText(t('sync'));
+          setSyncText(t('push'));
         }, 3000);
       }
     } catch (error) {
@@ -223,8 +281,19 @@ export default function Sync({editor}: {editor?: Vditor}) {
           break;
         case 'gitlab':
           const gitlabRepo2 = await getSyncRepoName('gitlab');
-          const { data } = await getGitlabFileCommits({path: activeFilePath, repo: gitlabRepo2});
-          res = { sha: data[0].id };
+          const gitlabRes2 = await getGitlabFileCommits({path: activeFilePath, repo: gitlabRepo2});
+          if (gitlabRes2 && gitlabRes2.data && gitlabRes2.data[0]) {
+            res = { sha: gitlabRes2.data[0].id };
+          }
+          break;
+        case 'gitea':
+          const giteaRepo2 = await getSyncRepoName('gitea');
+          // Gitea 使用 getFiles API 获取文件 SHA
+          const giteaRes2 = await getGiteaFiles({path: activeFilePath, repo: giteaRepo2});
+          // getFiles 对单个文件返回对象
+          if (giteaRes2 && !Array.isArray(giteaRes2)) {
+            res = giteaRes2;
+          }
           break;
       }
       
@@ -274,15 +343,52 @@ export default function Sync({editor}: {editor?: Vditor}) {
             repo: gitlabRepo4
           }); 
           break;
+        case 'gitea':
+          const giteaRepo4 = await getSyncRepoName('gitea');
+          uploadRes = await uploadGiteaFile({
+            ext: 'md',
+            file: uint8ArrayToBase64(file),
+            filename: `${_path && _path + '/'}${filename}`,
+            sha,
+            message,
+            repo: giteaRepo4
+          });
+          break;
         default:
           break;
       }
       
       // 检查上传结果并更新状态
       if (uploadRes?.data?.commit?.message) {
-        setSyncText(t('synced'));
+        setSyncText(t('pushed'));
         setProgressPercentage(0);
         emitter.emit('sync-success');
+
+        // 推送成功后，更新本地文件树状态
+        const { loadFileTree } = useArticleStore.getState()
+        await loadFileTree()
+
+        // 推送成功后，更新本地文件的同步时间
+        const { updateFileSyncTime } = await import('@/lib/sync/conflict-resolution')
+        await updateFileSyncTime(activeFilePath)
+        
+        // 发送最新 commit 信息给 Pull 组件，清除拉取状态
+        if (uploadRes?.data?.commit?.sha) {
+          const commitInfo = {
+            sha: uploadRes.data.commit.sha,
+            message: uploadRes.data.commit.message || message,
+            author: uploadRes.data.commit.author?.name || 'User',
+            date: new Date(uploadRes.data.commit.author?.date || Date.now()),
+            additions: uploadRes.data.commit.stats?.additions,
+            deletions: uploadRes.data.commit.stats?.deletions
+          }
+          emitter.emit('latest-commit-info', commitInfo)
+          
+          // 延迟一下再发送一次，确保状态同步
+          setTimeout(() => {
+            emitter.emit('latest-commit-info', commitInfo)
+          }, 100)
+        }
       }
     } catch (error) {
       console.error('Sync error:', error);
@@ -307,6 +413,7 @@ export default function Sync({editor}: {editor?: Vditor}) {
       if (backupMethod === 'github' && (autoSync === 'disabled' || !accessToken)) return false;
       if (backupMethod === 'gitee' && (giteeAutoSync === 'disabled' || !giteeAccessToken)) return false;
       if (backupMethod === 'gitlab' && (gitlabAutoSync === 'disabled' || !gitlabAccessToken)) return false;
+      if (backupMethod === 'gitea' && (giteaAutoSync === 'disabled' || !giteaAccessToken)) return false;
       return true;
     };
     
@@ -325,16 +432,20 @@ export default function Sync({editor}: {editor?: Vditor}) {
         return parseInt(giteeAutoSync) * 1000;
       }
       // 如果是Gitlab备份方式，使用gitlabAutoSync设置的时间
-      if (gitlabAutoSync === 'disabled') return 0;
-      // gitlabAutoSync存储的是秒数，转换为毫秒
-      return parseInt(gitlabAutoSync) * 1000;
+      if (primaryBackupMethod === 'gitlab') {
+        if (gitlabAutoSync === 'disabled') return 0;
+        return parseInt(gitlabAutoSync) * 1000;
+      }
+      // 如果是Gitea备份方式，使用giteaAutoSync设置的时间
+      if (giteaAutoSync === 'disabled') return 0;
+      return parseInt(giteaAutoSync) * 1000;
     };
     
     // 处理编辑器输入事件
     const handleInput = () => {
       // 更改同步状态文本
-      if (syncText !== t('sync')) {
-        setSyncText(t('sync'));
+      if (syncText !== t('push')) {
+        setSyncText(t('push'));
       }
       
       // 清除现有的定时器
@@ -398,7 +509,7 @@ export default function Sync({editor}: {editor?: Vditor}) {
       }
       emitter.off('editor-input', handleInput);
     };
-  }, [autoSync, giteeAutoSync, gitlabAutoSync, accessToken, giteeAccessToken, gitlabAccessToken, syncText, editor, t, primaryBackupMethod]);
+  }, [autoSync, giteeAutoSync, gitlabAutoSync, giteaAutoSync, accessToken, giteeAccessToken, gitlabAccessToken, giteaAccessToken, syncText, editor, t, primaryBackupMethod]);
 
   return (
     username ?
@@ -406,13 +517,13 @@ export default function Sync({editor}: {editor?: Vditor}) {
         onClick={handleSync}
         variant="ghost"
         size="sm"
-        disabled={(primaryBackupMethod === 'github' && !accessToken) || (primaryBackupMethod === 'gitee' && !giteeAccessToken) || (primaryBackupMethod === 'gitlab' && !gitlabAccessToken) || isLoading}
+        disabled={(primaryBackupMethod === 'github' && !accessToken) || (primaryBackupMethod === 'gitee' && !giteeAccessToken) || (primaryBackupMethod === 'gitlab' && !gitlabAccessToken) || (primaryBackupMethod === 'gitea' && !giteaAccessToken) || isLoading || disabled}
         className="relative outline-none overflow-hidden"
       >
         {/* 进度条背景 */}
         {progressPercentage > 0 && (
-          <div 
-            className="absolute inset-0 bg-zinc-200 dark:bg-zinc-800 transition-all duration-100 z-0" 
+          <div
+            className="absolute inset-0 bg-primary/20 transition-all duration-100 z-0"
             style={{ width: `${progressPercentage}%` }}
           />
         )}

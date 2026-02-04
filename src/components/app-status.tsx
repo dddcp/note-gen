@@ -1,32 +1,25 @@
-import { SidebarMenuButton } from "./ui/sidebar";
-import { checkSyncRepoState, getUserInfo } from "@/lib/github";
+import { checkSyncRepoState, getUserInfo } from "@/lib/sync/github";
 import { useEffect } from "react";
 import useSettingStore from "@/stores/setting";
-import { Avatar, AvatarFallback, AvatarImage } from "./ui/avatar";
-import { SyncStateEnum, UserInfo } from "@/lib/github.types";
+import { SyncStateEnum, UserInfo } from "@/lib/sync/github.types";
 import useSyncStore from "@/stores/sync";
-import { getSyncRepoName } from "@/lib/repo-utils";
-import { open } from '@tauri-apps/plugin-shell'
-import Image from "next/image";
+import { getSyncRepoName } from "@/lib/sync/repo-utils";
 
 export default function AppStatus() {
-  const { accessToken, giteeAccessToken, gitlabAccessToken, primaryBackupMethod, setGithubUsername, setGitlabUsername } = useSettingStore()
+  const { accessToken, giteeAccessToken, gitlabAccessToken, giteaAccessToken, primaryBackupMethod, setGithubUsername, setGitlabUsername, setGiteaUsername } = useSettingStore()
   const { 
-    userInfo, 
-    giteeUserInfo, 
-    gitlabUserInfo,
     setUserInfo, 
     setGiteeUserInfo,
     setGitlabUserInfo,
-    syncRepoState,
+    setGiteaUserInfo,
     setSyncRepoState,
     setSyncRepoInfo,
-    giteeSyncRepoState,
     setGiteeSyncRepoState,
     setGiteeSyncRepoInfo,
-    gitlabSyncProjectState,
     setGitlabSyncProjectState,
-    setGitlabSyncProjectInfo
+    setGitlabSyncProjectInfo,
+    setGiteaSyncRepoState,
+    setGiteaSyncRepoInfo
   } = useSyncStore()
 
   // 获取当前主要备份方式的用户信息
@@ -48,10 +41,11 @@ export default function AppStatus() {
           // 获取 Gitee 用户信息
           setGiteeSyncRepoInfo(undefined)
           setGiteeSyncRepoState(SyncStateEnum.checking)
-          const res = await import('@/lib/gitee').then(module => module.getUserInfo())
+          const res = await import('@/lib/sync/gitee').then(module => module.getUserInfo())
           if (res) {
             setGiteeUserInfo(res)
           }
+          // 注意：checkGiteeRepos 内部已经包含了 getUserInfo 调用，但这里保留以确保用户信息及时更新
           await checkGiteeRepos()
         }
       } else if (primaryBackupMethod === 'gitlab') {
@@ -59,7 +53,7 @@ export default function AppStatus() {
           // 获取 Gitlab 用户信息
           setGitlabSyncProjectInfo(undefined)
           setGitlabSyncProjectState(SyncStateEnum.checking)
-          const { getUserInfo } = await import('@/lib/gitlab')
+          const { getUserInfo } = await import('@/lib/sync/gitlab')
           const res = await getUserInfo()
           if (res) {
             setGitlabUserInfo(res)
@@ -67,10 +61,24 @@ export default function AppStatus() {
           }
           await checkGitlabProjects()
         }
+      } else if (primaryBackupMethod === 'gitea') {
+        if (giteaAccessToken) {
+          // 获取 Gitea 用户信息
+          setGiteaSyncRepoInfo(undefined)
+          setGiteaSyncRepoState(SyncStateEnum.checking)
+          const { getUserInfo } = await import('@/lib/sync/gitea')
+          const res = await getUserInfo()
+          if (res) {
+            setGiteaUserInfo(res)
+            setGiteaUsername(res.username)
+          }
+          await checkGiteaRepos()
+        }
       } else {
         setUserInfo(undefined)
         setGiteeUserInfo(undefined)
         setGitlabUserInfo(undefined)
+        setGiteaUserInfo(undefined)
       }
     } catch (err) {
       console.error('Failed to get user info:', err)
@@ -99,7 +107,7 @@ export default function AppStatus() {
   // 检查 Gitlab 项目状态（仅检查，不创建）
   async function checkGitlabProjects() {
     try {
-      const { checkSyncProjectState } = await import('@/lib/gitlab')
+      const { checkSyncProjectState } = await import('@/lib/sync/gitlab')
       
       // 检查同步项目状态
       const gitlabRepo = await getSyncRepoName('gitlab')
@@ -117,10 +125,34 @@ export default function AppStatus() {
     }
   }
   
+  // 检查 Gitea 仓库状态（仅检查，不创建）
+  async function checkGiteaRepos() {
+    try {
+      const { checkSyncRepoState } = await import('@/lib/sync/gitea')
+      
+      // 检查同步仓库状态
+      const giteaRepo = await getSyncRepoName('gitea')
+      const syncRepo = await checkSyncRepoState(giteaRepo)
+      if (syncRepo) {
+        setGiteaSyncRepoInfo(syncRepo)
+        setGiteaSyncRepoState(SyncStateEnum.success)
+      } else {
+        setGiteaSyncRepoInfo(undefined)
+        setGiteaSyncRepoState(SyncStateEnum.fail)
+      }
+    } catch (err) {
+      console.error('Failed to check Gitea repos:', err)
+      setGiteaSyncRepoState(SyncStateEnum.fail)
+    }
+  }
+  
   // 检查 Gitee 仓库状态（仅检查，不创建）
   async function checkGiteeRepos() {
     try {
-      const { checkSyncRepoState } = await import('@/lib/gitee')
+      const { checkSyncRepoState, getUserInfo } = await import('@/lib/sync/gitee')
+      
+      // 先获取用户信息，确保 giteeUsername 已设置
+      await getUserInfo();
       
       // 检查同步仓库状态
       const giteeRepo = await getSyncRepoName('gitee')
@@ -138,74 +170,12 @@ export default function AppStatus() {
     }
   }
 
-  function openUserHome() {
-    if (primaryBackupMethod === 'github') {
-      if (!userInfo) return
-      open(`https://github.com/${userInfo?.login}`)
-    } else if (primaryBackupMethod === 'gitee') {
-      if (!giteeUserInfo) return
-      open(`https://gitee.com/${giteeUserInfo?.login}`)
-    } else if (primaryBackupMethod === 'gitlab') {
-      if (!gitlabUserInfo) return
-      open(gitlabUserInfo.web_url)
-    }
-  }
-
   // 监听 token 变化，获取用户信息
   useEffect(() => {
-    if (accessToken || giteeAccessToken || gitlabAccessToken) {
+    if (accessToken || giteeAccessToken || gitlabAccessToken || giteaAccessToken) {
       handleGetUserInfo()
     }
-  }, [accessToken, giteeAccessToken, gitlabAccessToken, primaryBackupMethod])
+  }, [accessToken, giteeAccessToken, gitlabAccessToken, giteaAccessToken, primaryBackupMethod])
 
-  return (
-    <SidebarMenuButton size="lg" asChild className="md:size-8 p-0">
-      <div className="relative flex items-center gap-2 cursor-pointer" onClick={openUserHome} >
-        <Avatar className="size-8 rounded overflow-hidden">
-          {primaryBackupMethod === 'github' ? (
-            <>
-              <AvatarImage src={userInfo?.avatar_url} />
-              <AvatarFallback>
-                <Image src="/app-icon.png" alt="" width={0} height={0} className="size-8" />
-              </AvatarFallback>
-            </>
-          ) : primaryBackupMethod === 'gitee' ? (
-            <>
-              <AvatarImage src={giteeUserInfo?.avatar_url} />
-              <AvatarFallback>
-                <Image src="/app-icon.png" alt="" width={0} height={0} className="size-8" />
-              </AvatarFallback>
-            </>
-          ) : primaryBackupMethod === 'gitlab' ? (
-            <>
-              <AvatarImage src={gitlabUserInfo?.avatar_url} />
-              <AvatarFallback>
-                <Image src="/app-icon.png" alt="" width={0} height={0} className="size-8" />
-              </AvatarFallback>
-            </>
-          ) : null
-        }
-        </Avatar>
-        {
-          primaryBackupMethod === 'github' && accessToken ? (  
-            <div className={`
-              absolute right-0.5 bottom-0.5 rounded-full size-2 
-              ${syncRepoState === SyncStateEnum.fail ? 'bg-red-700' : 
-                syncRepoState === SyncStateEnum.checking ? 'bg-orange-400' : ''}`}>
-            </div>
-          ) : primaryBackupMethod === 'gitee' && giteeAccessToken ? (
-            <div className={`absolute right-0.5 bottom-0.5 rounded-full size-2
-              ${giteeSyncRepoState === SyncStateEnum.fail ? 'bg-red-700' : 
-              giteeSyncRepoState === SyncStateEnum.checking ? 'bg-orange-400' : ''}`}>
-            </div>
-          ) : primaryBackupMethod === 'gitlab' && gitlabAccessToken ? (
-            <div className={`absolute right-0.5 bottom-0.5 rounded-full size-2
-              ${gitlabSyncProjectState === SyncStateEnum.fail ? 'bg-red-700' : 
-              gitlabSyncProjectState === SyncStateEnum.checking ? 'bg-orange-400' : ''}`}>
-            </div>
-          ) : null
-        }
-      </div>
-    </SidebarMenuButton>
-  )
+  return null
 }

@@ -1,51 +1,92 @@
 'use client'
+import React from "react"
 import { delMark, delMarkForever, Mark, restoreMark, updateMark } from "@/db/marks";
 import { useTranslations } from 'next-intl';
 import {
   ContextMenu,
   ContextMenuContent,
   ContextMenuItem,
-  ContextMenuSub,
-  ContextMenuSubContent,
   ContextMenuSeparator,
-  ContextMenuSubTrigger,
   ContextMenuTrigger,
-} from "@/components/ui/context-menu"
+  ContextMenuSub,
+  ContextMenuSubTrigger,
+  ContextMenuSubContent
+} from "@/components/ui/enhanced-context-menu"
 import dayjs from "dayjs";
 import relativeTime from 'dayjs/plugin/relativeTime'
-import React, { useEffect, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import useMarkStore from "@/stores/mark";
 import useTagStore from "@/stores/tag";
 import { LocalImage } from "@/components/local-image";
-import { fetchAiDesc } from "@/lib/ai";
+import { fetchAiDesc } from "@/lib/ai/description";
 import { Sheet, SheetContent, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
 import { appDataDir } from "@tauri-apps/api/path";
 import { ImageUp } from "lucide-react";
 import { toast } from "@/hooks/use-toast";
 import { open } from "@tauri-apps/plugin-shell";
 import { Textarea } from "@/components/ui/textarea";
+import { AudioPlayer } from "@/components/audio-player";
 import { ImageViewer } from "@/components/image-viewer";
 import ChatPreview from "../chat/chat-preview";
 import { Checkbox } from "@/components/ui/checkbox";
+import { MarkMobileActions } from "./mark-mobile-actions";
+import { markToMarkdown } from "@/lib/mark-to-markdown";
+import useSettingStore from "@/stores/setting";
+import { TodoItemContent } from "./todo-item-content";
 
 dayjs.extend(relativeTime)
 
-function DetailViewer({mark, content, path}: {mark: Mark, content: string, path?: string}) {
+// Memoize line height mapping function
+const getLineHeight = (textSize: string): string => {
+  const heightMap: Record<string, string> = {
+    'xs': 'leading-3',
+    'sm': 'leading-4',
+    'md': 'leading-5',
+    'lg': 'leading-6',
+    'xl': 'leading-7'
+  }
+  return heightMap[textSize] || 'leading-4'
+}
+
+// Memoize image size mapping function
+const getImageSize = (textSize: string): string => {
+  const sizeMap: Record<string, string> = {
+    'xs': 'max-h-16',
+    'sm': 'max-h-20',
+    'md': 'max-h-24',
+    'lg': 'max-h-32',
+    'xl': 'max-h-40'
+  }
+  return sizeMap[textSize] || 'max-h-24'
+}
+
+// Memoize word count function
+const getWordCount = (text: string): number => {
+  if (!text) return 0;
+  return text.replace(/\s/g, '').length;
+};
+
+const DetailViewer = React.memo(({mark, content, path}: {mark: Mark, content: string, path?: string}) => {
   const [value, setValue] = useState('')
   const [descValue, setDescValue] = useState('')
   const { updateMark } = useMarkStore()
+  const { recordTextSize } = useSettingStore()
   const t = useTranslations('record.mark.type');
   const markT = useTranslations('record.mark');
+  const messageControlT = useTranslations('record.mark.mark.chat.messageControl');
 
-  async function textDescChangeHandler(e: React.ChangeEvent<HTMLTextAreaElement>) {
+  const lineHeight = useMemo(() => getLineHeight(recordTextSize), [recordTextSize])
+  const imageSize = useMemo(() => getImageSize(recordTextSize), [recordTextSize])
+
+  const textDescChangeHandler = useCallback(async (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setDescValue(e.target.value)
     await updateMark({ ...mark, desc: e.target.value })
-  }
+  }, [mark, updateMark])
 
-  async function textMarkChangeHandler(e: React.ChangeEvent<HTMLTextAreaElement>) {
+  const textMarkChangeHandler = useCallback(async (e: React.ChangeEvent<HTMLTextAreaElement>) => {
     setValue(e.target.value)
     await updateMark({ ...mark, desc: e.target.value, content: e.target.value })
-  }
+  }, [mark, updateMark])
 
   useEffect(() => {
     setValue(mark.content || '')
@@ -54,12 +95,17 @@ function DetailViewer({mark, content, path}: {mark: Mark, content: string, path?
   return (
     <Sheet>
       <SheetTrigger asChild>
-        <span className="line-clamp-2 leading-4 mt-2 text-xs break-words cursor-pointer hover:underline">{content}</span>
+        <span className={`line-clamp-2 ${lineHeight} mt-2 text-${recordTextSize} break-words cursor-pointer hover:underline`}>{content}</span>
       </SheetTrigger>
       <SheetContent className="lg:min-w-[800px] w-full mt-[env(safe-area-inset-top)] p-0">
         <SheetHeader className="p-4 border-b">
           <SheetTitle>{t(mark.type)}</SheetTitle>
-          <span className="mt-4 text-xs text-zinc-500">{markT('createdAt')}：{dayjs(mark.createdAt).format('YYYY-MM-DD HH:mm:ss')}</span>
+          <div className="flex items-center gap-2">
+            <span className={`text-${recordTextSize} text-zinc-500`}>{markT('createdAt')}：{dayjs(mark.createdAt).format('YYYY-MM-DD HH:mm:ss')}</span>
+            <span className={`text-${recordTextSize} text-zinc-500`}>
+              {getWordCount(value)} {messageControlT('words')}
+            </span>
+          </div>
         </SheetHeader>
         <div className="h-[calc(100vh-88px)] overflow-y-auto md:p-8 p-2">
           {
@@ -67,7 +113,7 @@ function DetailViewer({mark, content, path}: {mark: Mark, content: string, path?
             <LocalImage
               src={mark.url.includes('http') ? mark.url : `/${path}/${mark.url}`}
               alt=""
-              className="w-full max-h-80 object-contain"
+              className={`w-full ${imageSize} object-contain`}
             /> :
             null
           }
@@ -88,51 +134,55 @@ function DetailViewer({mark, content, path}: {mark: Mark, content: string, path?
       </SheetContent>
     </Sheet>
   )
-}
+})
+DetailViewer.displayName = 'DetailViewer'
 
-export function MarkWrapper({mark}: {mark: Mark}) {
+export const MarkWrapper = React.memo(({mark}: {mark: Mark}) => {
   const t = useTranslations('record.mark.type');
   const { isMultiSelectMode, selectedMarkIds, toggleMarkSelection } = useMarkStore();
-  
-  const handleCheckboxChange = () => {
+  const { recordTextSize } = useSettingStore();
+
+  const lineHeight = useMemo(() => getLineHeight(recordTextSize), [recordTextSize])
+
+  const handleCheckboxChange = useCallback(() => {
     toggleMarkSelection(mark.id);
-  };
+  }, [mark.id, toggleMarkSelection]);
 
   const renderContent = () => {
     switch (mark.type) {
     case 'scan':
     return (
-        <div className="pr-2 flex-1 overflow-hidden text-xs">
+        <div className={`flex-1 overflow-hidden text-${recordTextSize} ${lineHeight} pr-10 md:pr-2`}>
           <div className="flex w-full items-center gap-2 text-zinc-500">
-            <span className="flex items-center gap-1 bg-cyan-900 text-white px-1 rounded">
+            <span className={`flex items-center gap-1 bg-cyan-900 text-white px-1 rounded text-${recordTextSize}`}>
               {t(mark.type)}
             </span>
-            <span className="ml-auto text-xs">{dayjs(mark.createdAt).fromNow()}</span>
+            <span className={`ml-auto text-${recordTextSize}`}>{dayjs(mark.createdAt).fromNow()}</span>
           </div>
           <DetailViewer mark={mark} content={mark.desc || ''} path="screenshot" />
         </div>
     )
     case 'image':
     return (
-        <div className="pr-2 flex-1 overflow-hidden text-xs">
+        <div className={`flex-1 overflow-hidden text-${recordTextSize} ${lineHeight} pr-10 md:pr-2`}>
           <div className="flex w-full items-center gap-2 text-zinc-500">
-            <span className="flex items-center gap-1 bg-fuchsia-900 text-white px-1 rounded">
+            <span className={`flex items-center gap-1 bg-fuchsia-900 text-white px-1 rounded text-${recordTextSize}`}>
               {t(mark.type)}
             </span>
             {mark.url.includes('http') ? <ImageUp className="size-3 text-zinc-400" /> : null}
-            <span className="ml-auto text-xs">{dayjs(mark.createdAt).fromNow()}</span>
+            <span className={`ml-auto text-${recordTextSize}`}>{dayjs(mark.createdAt).fromNow()}</span>
           </div>
           <DetailViewer mark={mark} content={mark.desc || ''} path="image" />
         </div>
     )
     case 'link':
     return (
-        <div className="flex-1">
-          <div className="flex w-full items-center gap-2 text-zinc-500 text-xs">
+        <div className="flex-1 pr-10 md:pr-0">
+          <div className={`flex w-full items-center gap-2 text-zinc-500 text-${recordTextSize} ${lineHeight}`}>
             <span className="flex items-center gap-1 bg-blue-900 text-white px-1 rounded">
               {t(mark.type)}
             </span>
-            <span className="ml-auto text-xs">{dayjs(mark.createdAt).fromNow()}</span>
+            <span className={`ml-auto text-${recordTextSize}`}>{dayjs(mark.createdAt).fromNow()}</span>
           </div>
           <DetailViewer mark={mark} content={mark.desc || ''} />
           <div className="mt-1">
@@ -140,7 +190,7 @@ export function MarkWrapper({mark}: {mark: Mark}) {
               href={mark.url} 
               target="_blank" 
               rel="noopener noreferrer"
-              className="text-xs text-blue-500 hover:underline truncate block"
+              className={`text-${recordTextSize} text-blue-500 hover:underline truncate block`}
             >
               {mark.url}
             </a>
@@ -149,74 +199,120 @@ export function MarkWrapper({mark}: {mark: Mark}) {
     )
     case 'text':
       return (
-          <div className="flex-1">
-            <div className="flex w-full items-center gap-2 text-zinc-500 text-xs">
+          <div className="flex-1 pr-10 md:pr-0">
+            <div className={`flex w-full items-center gap-2 text-zinc-500 text-${recordTextSize} ${lineHeight}`}>
               <span className="flex items-center gap-1 bg-lime-900 text-white px-1 rounded">
                 {t(mark.type)}
               </span>
-              <span className="ml-auto text-xs">{dayjs(mark.createdAt).fromNow()}</span>
+              <span className={`ml-auto text-${recordTextSize}`}>{dayjs(mark.createdAt).fromNow()}</span>
             </div>
             <DetailViewer mark={mark} content={mark.content || ''} />
           </div>
       )
+    case 'recording':
+      return (
+          <div className="flex-1 pr-10 md:pr-0">
+            <div className={`flex w-full items-center gap-2 text-zinc-500 text-${recordTextSize} ${lineHeight}`}>
+              <span className="flex items-center gap-1 bg-red-900 text-white px-1 rounded">
+                {t(mark.type)}
+              </span>
+              <span className={`ml-auto text-${recordTextSize}`}>{dayjs(mark.createdAt).fromNow()}</span>
+            </div>
+            <DetailViewer mark={mark} content={mark.content || ''} />
+            {mark.url && (
+              <div className="mt-2">
+                <AudioPlayer audioPath={mark.url} />
+              </div>
+            )}
+          </div>
+      )
     case 'file':
       return (
-          <div className="flex-1">
-            <div className="flex w-full items-center gap-2 text-zinc-500 text-xs">
+          <div className="flex-1 pr-10 md:pr-0">
+            <div className={`flex w-full items-center gap-2 text-zinc-500 text-${recordTextSize} ${lineHeight}`}>
               <span className="flex items-center gap-1 bg-orange-800 text-white px-1 rounded">
                 {t(mark.type)}
               </span>
-              <span className="ml-auto text-xs">{dayjs(mark.createdAt).fromNow()}</span>
+              <span className={`ml-auto text-${recordTextSize}`}>{dayjs(mark.createdAt).fromNow()}</span>
             </div>
             <DetailViewer mark={mark} content={mark.content || ''} />
             {mark.url && (
               <div className="mt-1">
-                <span className="text-xs">
+                <span className={`text-${recordTextSize}`}>
                   {mark.desc}
                 </span>
               </div>
             )}
           </div>
       )
+    case 'todo':
+      return <TodoItemContent mark={mark} />
     default:
       return null
     }
   }
 
   return (
-    <div className="flex p-2">
+    <div className="flex p-2 items-start">
       {isMultiSelectMode && (
-        <div className="pr-2 flex items-start">
+        <div className="pr-2 flex items-start pt-1">
           <Checkbox
             checked={selectedMarkIds.has(mark.id)}
             onCheckedChange={handleCheckboxChange}
           />
         </div>
       )}
-      {renderContent()}
+      <div className="flex-1 min-w-0">
+        {renderContent()}
+      </div>
       {(mark.type === 'scan' || mark.type === 'image') && (
-        <div className="bg-zinc-900 flex items-center justify-center">
+        <div className="bg-zinc-900 flex items-center justify-center ml-2">
           <ImageViewer url={mark.url} path={mark.type === 'scan' ? 'screenshot' : 'image'} />
         </div>
       )}
     </div>
   )
-}
+})
+MarkWrapper.displayName = 'MarkWrapper'
 
-export function MarkItem({mark}: {mark: Mark}) {
+export const MarkItem = React.memo(({mark}: {mark: Mark}) => {
   const t = useTranslations();
-  const { 
+  const {
     marks,
-    fetchMarks, 
-    trashState, 
-    fetchAllTrashMarks, 
-    isMultiSelectMode, 
-    selectedMarkIds, 
-    clearSelection 
+    fetchMarks,
+    trashState,
+    fetchAllTrashMarks,
+    isMultiSelectMode,
+    selectedMarkIds,
+    clearSelection
   } = useMarkStore()
   const { tags, currentTagId, fetchTags, getCurrentTag } = useTagStore()
 
-  async function handleDelMark() {
+  const handleDragStart = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    if (isMultiSelectMode) {
+      e.preventDefault()
+      return
+    }
+
+    const markdownContent = markToMarkdown(mark);
+    e.dataTransfer.setData('text/plain', markdownContent);
+    e.dataTransfer.setData('application/json', JSON.stringify(mark));
+    e.dataTransfer.effectAllowed = 'copy';
+
+    // 添加拖拽时的视觉反馈
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = '0.5'
+    }
+  }, [isMultiSelectMode, mark]);
+
+  const handleDragEnd = useCallback((e: React.DragEvent<HTMLDivElement>) => {
+    if (e.currentTarget instanceof HTMLElement) {
+      e.currentTarget.style.opacity = '1'
+    }
+  }, []);
+
+  const handleDelMark = useCallback(async (e?: React.MouseEvent) => {
+    e?.stopPropagation()
     if (isMultiSelectMode && selectedMarkIds.size > 0) {
       // 多选删除
       const selectedMarks = Array.from(selectedMarkIds)
@@ -231,9 +327,10 @@ export function MarkItem({mark}: {mark: Mark}) {
     await fetchMarks()
     await fetchTags()
     getCurrentTag()
-  }
+  }, [isMultiSelectMode, selectedMarkIds, clearSelection, fetchMarks, fetchTags, getCurrentTag, mark.id])
 
-  async function handleDelForever() {
+  const handleDelForever = useCallback(async (e?: React.MouseEvent) => {
+    e?.stopPropagation()
     if (isMultiSelectMode && selectedMarkIds.size > 0) {
       // 多选永久删除
       const selectedMarks = Array.from(selectedMarkIds)
@@ -246,18 +343,20 @@ export function MarkItem({mark}: {mark: Mark}) {
       await delMarkForever(mark.id)
     }
     await fetchAllTrashMarks()
-  }
+  }, [isMultiSelectMode, selectedMarkIds, clearSelection, fetchAllTrashMarks, mark.id])
 
-  async function handleRestore() {
+  const handleRestore = useCallback(async (e?: React.MouseEvent) => {
+    e?.stopPropagation()
     await restoreMark(mark.id)
     if (trashState) {
       await fetchAllTrashMarks()
     } else {
       await fetchMarks()
     }
-  }
+  }, [mark.id, trashState, fetchAllTrashMarks, fetchMarks])
 
-  async function handleTransfer(tagId: number) {
+  const handleTransfer = useCallback(async (tagId: number, e?: React.MouseEvent) => {
+    e?.stopPropagation()
     if (isMultiSelectMode && selectedMarkIds.size > 0) {
       // 多选转移 - 只处理选中的记录
       const selectedMarks = Array.from(selectedMarkIds)
@@ -276,21 +375,24 @@ export function MarkItem({mark}: {mark: Mark}) {
     await fetchTags()
     getCurrentTag()
     fetchMarks()
-  }
+  }, [isMultiSelectMode, selectedMarkIds, clearSelection, marks, mark, fetchTags, getCurrentTag, fetchMarks])
 
-  async function regenerateDesc() {
+  const regenerateDesc = useCallback(async (e?: React.MouseEvent) => {
+    e?.stopPropagation()
     const desc = await fetchAiDesc(mark.content || '') || ''
     await updateMark({ ...mark, desc })
     fetchMarks()
-  }
+  }, [mark, fetchMarks])
 
-  async function handelShowInFolder() {
+  const handelShowInFolder = useCallback(async (e?: React.MouseEvent) => {
+    e?.stopPropagation()
     const appDir = await appDataDir()
     const path = mark.type === 'scan' ? 'screenshot' : 'image'
     open(`${appDir}/${path}`)
-  }
+  }, [mark.type])
 
-  async function handelShowInFile() {
+  const handelShowInFile = useCallback(async (e?: React.MouseEvent) => {
+    e?.stopPropagation()
     const appDir = await appDataDir()
     const path = mark.type === 'scan' ? 'screenshot' : 'image'
     let filename = mark.url
@@ -298,39 +400,71 @@ export function MarkItem({mark}: {mark: Mark}) {
       filename = mark.url.split('/').pop() || '';
     }
     open(`${appDir}/${path}/${filename}`)
-  }
+  }, [mark.type, mark.url])
 
-  async function handleCopyLink() {
+  const handleCopyLink = useCallback(async (e?: React.MouseEvent) => {
+    e?.stopPropagation()
     await navigator.clipboard.writeText(mark.url)
     toast({
       title: t('record.mark.toolbar.copied')
     })
-  }
+  }, [mark.url, t])
+
+  // Memoize filtered tags to prevent unnecessary re-renders
+  const filteredTags = useMemo(() =>
+    tags.filter(tag => tag.id !== currentTagId),
+    [tags, currentTagId]
+  )
 
   return (
     <ContextMenu>
-      <ContextMenuTrigger>
-        <div className="border-b">
+      <ContextMenuTrigger asChild>
+        <div
+          data-mark-item="true"
+          className="border-t relative cursor-move hover:bg-accent/50 transition-colors"
+          draggable={!isMultiSelectMode}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
           <MarkWrapper mark={mark} />
+          <div className="absolute top-2 right-2">
+            <MarkMobileActions
+              mark={mark}
+              tags={tags}
+              currentTagId={currentTagId}
+              trashState={trashState}
+              isMultiSelectMode={isMultiSelectMode}
+              selectedMarkIds={selectedMarkIds}
+              onTransfer={handleTransfer}
+              onCopyLink={handleCopyLink}
+              onRegenerateDesc={regenerateDesc}
+              onShowInFolder={handelShowInFolder}
+              onShowInFile={handelShowInFile}
+              onRestore={handleRestore}
+              onDelete={handleDelMark}
+              onDeleteForever={handleDelForever}
+            />
+          </div>
         </div>
       </ContextMenuTrigger>
       <ContextMenuContent>
         {
           trashState ? null :
           <ContextMenuSub>
-            <ContextMenuSubTrigger inset>
-              {isMultiSelectMode && selectedMarkIds.size > 0 
+            <ContextMenuSubTrigger inset menuType="record">
+              {isMultiSelectMode && selectedMarkIds.size > 0
                 ? t('record.mark.toolbar.moveSelectedTags', { count: selectedMarkIds.size })
                 : t('record.mark.toolbar.moveTag')
               }
             </ContextMenuSubTrigger>
             <ContextMenuSubContent>
               {
-                tags.map((tag) => (
-                  <ContextMenuItem 
-                    disabled={tag.id === currentTagId} 
-                    key={tag.id} 
+                filteredTags.map((tag) => (
+                  <ContextMenuItem
+                    disabled={tag.id === currentTagId}
+                    key={tag.id}
                     onClick={() => handleTransfer(tag.id)}
+                    menuType="record"
                   >
                     {tag.name}
                   </ContextMenuItem>
@@ -339,29 +473,29 @@ export function MarkItem({mark}: {mark: Mark}) {
             </ContextMenuSubContent>
           </ContextMenuSub>
         }
-        <ContextMenuItem inset disabled={isMultiSelectMode || true}>
+        <ContextMenuItem inset disabled={isMultiSelectMode || true} menuType="record">
           {t('record.mark.toolbar.convertTo', { type: mark.type === 'scan' ? t('record.mark.type.image') : t('record.mark.type.screenshot') })}
         </ContextMenuItem>
-        <ContextMenuItem inset disabled={isMultiSelectMode || !mark.url} onClick={handleCopyLink}>
+        <ContextMenuItem inset disabled={isMultiSelectMode || !mark.url} onClick={handleCopyLink} menuType="record">
           {t('record.mark.toolbar.copyLink')}
         </ContextMenuItem>
-        <ContextMenuItem inset disabled={isMultiSelectMode || mark.type === 'text'} onClick={regenerateDesc}>
+        <ContextMenuItem inset disabled={isMultiSelectMode || mark.type === 'text'} onClick={regenerateDesc} menuType="record">
           {t('record.mark.toolbar.regenerateDesc')}
         </ContextMenuItem>
         <ContextMenuSeparator />
-        <ContextMenuItem inset disabled={isMultiSelectMode || mark.type === 'text'} onClick={handelShowInFolder}>
+        <ContextMenuItem inset disabled={isMultiSelectMode || mark.type === 'text'} onClick={handelShowInFolder} menuType="record">
           {t('record.mark.toolbar.viewFolder')}
         </ContextMenuItem>
-        <ContextMenuItem inset disabled={isMultiSelectMode || mark.type === 'text'} onClick={handelShowInFile}>
+        <ContextMenuItem inset disabled={isMultiSelectMode || mark.type === 'text'} onClick={handelShowInFile} menuType="record">
           {t('record.mark.toolbar.viewFile')}
         </ContextMenuItem>
         {
           trashState ? 
           <>
-            <ContextMenuItem inset disabled={isMultiSelectMode} onClick={handleRestore}>
+            <ContextMenuItem inset disabled={isMultiSelectMode} onClick={handleRestore} menuType="record">
               {t('record.mark.toolbar.restore')}
             </ContextMenuItem>
-            <ContextMenuItem inset onClick={handleDelForever}>
+            <ContextMenuItem inset onClick={handleDelForever} menuType="record">
               <span className="text-red-900">
                 {isMultiSelectMode && selectedMarkIds.size > 0 
                   ? t('record.mark.toolbar.deleteSelectedForever', { count: selectedMarkIds.size })
@@ -370,7 +504,7 @@ export function MarkItem({mark}: {mark: Mark}) {
               </span>
             </ContextMenuItem>
           </> :
-          <ContextMenuItem inset onClick={handleDelMark}>
+          <ContextMenuItem inset onClick={handleDelMark} menuType="record">
             <span className="text-red-900">
               {isMultiSelectMode && selectedMarkIds.size > 0 
                 ? t('record.mark.toolbar.deleteSelected', { count: selectedMarkIds.size })
@@ -382,4 +516,5 @@ export function MarkItem({mark}: {mark: Mark}) {
       </ContextMenuContent>
     </ContextMenu>
   )
-}
+})
+MarkItem.displayName = 'MarkItem'

@@ -1,5 +1,6 @@
 'use client';
-import { SettingPanel, SettingRow, SettingType } from "../components/setting-base";
+import { SettingType } from "../components/setting-base";
+import { Item, ItemGroup, ItemMedia, ItemContent, ItemTitle, ItemDescription, ItemActions } from "@/components/ui/item";
 import { useTranslations } from 'next-intl';
 import Updater from "./updater";
 import { Bug, DownloadIcon, Github, HomeIcon, MessageSquare, SettingsIcon } from "lucide-react";
@@ -18,7 +19,7 @@ export function SettingAbout({id, icon}: {id: string, icon?: React.ReactNode}) {
       buttonName: t('items.home.buttonName')
     },
     {
-      url: "https://notegen.top/en/settings/sync.html",
+      url: "https://notegen.top/en/docs/settings/sync",
       title: t('items.guide.title'),
       desc: t('items.guide.desc'),
       icon: <SettingsIcon className="size-4" />,
@@ -55,13 +56,13 @@ export function SettingAbout({id, icon}: {id: string, icon?: React.ReactNode}) {
   ]
 
   return (
-    <SettingType id={id} icon={icon} title={t('title')}>
-      <SettingRow className="mb-12">
-        <Updater />
-      </SettingRow>
-      {
-        items.map(item => <AboutItem key={item.url} {...item} />)
-      }
+    <SettingType id={id} icon={icon} title={t('title')} desc={t('desc')}>
+      <Updater />
+      <ItemGroup className="gap-4 pt-8">
+        {
+          items.map(item => <AboutItem key={item.url} {...item} />)
+        }
+      </ItemGroup>
     </SettingType>
   )
 }
@@ -70,7 +71,14 @@ function AboutItem({url, title, desc, icon, buttonName}: {url: string, title: st
   const openInBrowser = () => {
     open(url);
   }
-  return <SettingPanel title={title} icon={icon} desc={desc}>
-    <Button variant="outline" onClick={openInBrowser}>{buttonName}</Button>
-  </SettingPanel>
+  return <Item variant="outline">
+    <ItemMedia variant="icon">{icon}</ItemMedia>
+    <ItemContent>
+      <ItemTitle>{title}</ItemTitle>
+      {desc && <ItemDescription>{desc}</ItemDescription>}
+    </ItemContent>
+    <ItemActions>
+      <Button variant="outline" onClick={openInBrowser}>{buttonName}</Button>
+    </ItemActions>
+  </Item>
 }

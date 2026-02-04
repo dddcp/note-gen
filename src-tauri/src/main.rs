@@ -10,14 +10,18 @@ mod window;
 mod app_setup;
 mod backup;
 mod mcp;
+mod device;
+mod skills;
 
 use screenshot::{screenshot};
 use webdav::{webdav_backup, webdav_sync, webdav_test, webdav_create_dir};
 use fuzzy_search::{fuzzy_search, fuzzy_search_parallel};
 use keywords::{rank_keywords};
 use backup::{export_app_data, import_app_data};
+use skills::import_skill_zip;
 use mcp::{start_mcp_stdio_server, stop_mcp_server, send_mcp_message, McpServerManager};
-use tauri::RunEvent;
+use device::get_device_id;
+use tray::update_tray_enabled;
 
 fn main() {
     tauri::Builder::default()
@@ -58,9 +62,12 @@ fn main() {
             webdav_create_dir,
             export_app_data,
             import_app_data,
+            import_skill_zip,
             start_mcp_stdio_server,
             stop_mcp_server,
             send_mcp_message,
+            get_device_id,
+            update_tray_enabled,
         ])
         
         // 应用设置 - 在所有插件和命令注册后
@@ -68,10 +75,10 @@ fn main() {
         
         .build(tauri::generate_context!())
         .expect("error while running tauri application")
-        .run(|app_handle, event| match event {
+        .run(|_app_handle, event| match event {
             #[cfg(target_os = "macos")]
-            RunEvent::Reopen { has_visible_windows, .. } => {
-                window::handle_macos_reopen(&app_handle, has_visible_windows);
+            tauri::RunEvent::Reopen { has_visible_windows, .. } => {
+                window::handle_macos_reopen(&_app_handle, has_visible_windows);
             }
             _ => {}
         });

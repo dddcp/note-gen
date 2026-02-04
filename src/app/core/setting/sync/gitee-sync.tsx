@@ -1,6 +1,7 @@
 'use client'
 import { Input } from "@/components/ui/input";
-import { FormItem, SettingPanel, SettingRow } from "../components/setting-base";
+import { FormItem } from "../components/setting-base";
+import { Item, ItemContent, ItemTitle, ItemDescription, ItemActions, ItemMedia } from '@/components/ui/item';
 import { useEffect, useState } from "react";
 import { useTranslations } from 'next-intl';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -12,9 +13,9 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { OpenBroswer } from "@/components/open-broswer";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
-import { checkSyncRepoState, createSyncRepo, getUserInfo } from "@/lib/gitee";
+import { checkSyncRepoState, createSyncRepo, getUserInfo } from "@/lib/sync/gitee";
 import { Button } from "@/components/ui/button";
-import { RepoNames, SyncStateEnum } from "@/lib/github.types";
+import { RepoNames, SyncStateEnum } from "@/lib/sync/github.types";
 import { DatabaseBackup, Eye, EyeOff, Plus, RefreshCcw } from "lucide-react";
 
 dayjs.extend(relativeTime)
@@ -54,21 +55,47 @@ export function GiteeSync() {
       // 先清空之前的仓库信息
       setGiteeSyncRepoInfo(undefined)
       
-      await getUserInfo();
-      const repoName = getRepoName()
-      const syncRepo = await checkSyncRepoState(repoName)
+      // 添加超时保护，避免无限等待
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('检测超时')), 15000) // 15秒超时
+      })
       
-      if (syncRepo) {
-        setGiteeSyncRepoInfo(syncRepo)
-        setGiteeSyncRepoState(SyncStateEnum.success)
-      } else {
-        setGiteeSyncRepoInfo(undefined)
-        setGiteeSyncRepoState(SyncStateEnum.fail)
-      }
+      // 使用 Promise.race 来处理超时
+      await Promise.race([
+        (async () => {
+          // 先检查网络连接
+          if (!navigator.onLine) {
+            throw new Error('网络连接不可用')
+          }
+          
+          await getUserInfo();
+          const repoName = getRepoName()
+          const syncRepo = await checkSyncRepoState(repoName)
+          
+          if (syncRepo) {
+            setGiteeSyncRepoInfo(syncRepo)
+            setGiteeSyncRepoState(SyncStateEnum.success)
+          } else {
+            setGiteeSyncRepoInfo(undefined)
+            setGiteeSyncRepoState(SyncStateEnum.fail)
+          }
+        })(),
+        timeoutPromise
+      ])
+      
     } catch (err) {
       console.error('Failed to check Gitee repos:', err)
       setGiteeSyncRepoInfo(undefined)
       setGiteeSyncRepoState(SyncStateEnum.fail)
+      
+      // 如果是超时错误，显示特定提示
+      if (err instanceof Error) {
+        if (err.message === '检测超时') {
+          console.warn('Gitee 仓库检测超时，可能是网络问题')
+        } else if (err.message === '网络连接不可用') {
+          console.warn('网络连接不可用，请检查网络设置')
+        }
+      }
     }
   }
 
@@ -77,16 +104,32 @@ export function GiteeSync() {
     try {
       setGiteeSyncRepoState(SyncStateEnum.creating)
       const repoName = getRepoName()
-      const info = await createSyncRepo(repoName, true)
-      if (info) {
-        setGiteeSyncRepoInfo(info)
-        setGiteeSyncRepoState(SyncStateEnum.success)
-      } else {
-        setGiteeSyncRepoState(SyncStateEnum.fail)
-      }
+      
+      // 添加超时保护
+      const timeoutPromise = new Promise((_, reject) => {
+        setTimeout(() => reject(new Error('创建超时')), 20000) // 20秒超时
+      })
+      
+      await Promise.race([
+        (async () => {
+          const info = await createSyncRepo(repoName, true)
+          if (info) {
+            setGiteeSyncRepoInfo(info)
+            setGiteeSyncRepoState(SyncStateEnum.success)
+          } else {
+            setGiteeSyncRepoState(SyncStateEnum.fail)
+          }
+        })(),
+        timeoutPromise
+      ])
+      
     } catch (err) {
       console.error('Failed to create Gitee repo:', err)
       setGiteeSyncRepoState(SyncStateEnum.fail)
+      
+      if (err instanceof Error && err.message === '创建超时') {
+        console.warn('Gitee 仓库创建超时，可能是网络问题')
+      }
     }
   }
 
@@ -112,13 +155,31 @@ export function GiteeSync() {
       }
     }
     init()
+
+    // 添加网络状态监听
+    const handleOnline = () => {
+      // Network connected
+    }
+
+    const handleOffline = () => {
+      // Network disconnected
+      setGiteeSyncRepoState(SyncStateEnum.fail)
+      setGiteeSyncRepoInfo(undefined)
+    }
+
+    window.addEventListener('online', handleOnline)
+    window.addEventListener('offline', handleOffline)
+
+    return () => {
+      window.removeEventListener('online', handleOnline)
+      window.removeEventListener('offline', handleOffline)
+    }
   }, [])
 
 
   return (
-    <div className="mt-4">
-      <SettingRow>
-        <FormItem title="Gitee 私人令牌" desc={t('settings.sync.giteeTokenDesc')}>
+    <div className="space-y-8">
+      <FormItem title="Gitee 私人令牌" desc={t('settings.sync.giteeTokenDesc')}>
           <OpenBroswer url="https://gitee.com/profile/personal_access_tokens/new" title={t('settings.sync.newToken')} className="mb-2" />
           <div className="flex gap-2">
             <Input value={giteeAccessToken} onChange={tokenChangeHandler} type={giteeAccessTokenVisible ? 'text' : 'password'} />
@@ -126,10 +187,8 @@ export function GiteeSync() {
               {giteeAccessTokenVisible ? <Eye /> : <EyeOff />}
             </Button>
           </div>
-        </FormItem>
-      </SettingRow>
-      <SettingRow>
-        <FormItem title={t('settings.sync.customSyncRepo')} desc={t('settings.sync.customSyncRepoDesc')}>
+      </FormItem>
+      <FormItem title={t('settings.sync.customSyncRepo')} desc={t('settings.sync.customSyncRepoDesc')}>
           <Input 
             value={giteeCustomSyncRepo} 
             onChange={(e) => {
@@ -137,10 +196,8 @@ export function GiteeSync() {
             }}
             placeholder={RepoNames.sync}
           />
-        </FormItem>
-      </SettingRow>
-      <SettingRow>
-        <FormItem title={t('settings.sync.repoStatus')}>
+      </FormItem>
+      <FormItem title={t('settings.sync.repoStatus')}>
           <Card>
             <CardHeader className={`${giteeSyncRepoInfo ? 'border-b' : ''}`}>
               <CardTitle className="flex justify-between items-center">
@@ -191,33 +248,39 @@ export function GiteeSync() {
               </CardContent>
             }
           </Card>
-        </FormItem>
-      </SettingRow>
+      </FormItem>
       {
         giteeSyncRepoInfo &&
-        <>
-          <SettingPanel title={t('settings.sync.autoSync')} desc={t('settings.sync.giteeAutoSyncDesc')}>
-            <Select
-              value={giteeAutoSync}
-              onValueChange={(value) => setGiteeAutoSync(value)}
-              disabled={!giteeAccessToken || giteeSyncRepoState !== SyncStateEnum.success}
-            >
-              <SelectTrigger className="w-[180px]">
-                <SelectValue placeholder={t('settings.sync.autoSyncOptions.placeholder')} />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="disabled">{t('settings.sync.autoSyncOptions.disabled')}</SelectItem>
-                <SelectItem value="10">{t('settings.sync.autoSyncOptions.10s')}</SelectItem>
-                <SelectItem value="30">{t('settings.sync.autoSyncOptions.30s')}</SelectItem>
-                <SelectItem value="60">{t('settings.sync.autoSyncOptions.1m')}</SelectItem>
-                <SelectItem value="300">{t('settings.sync.autoSyncOptions.5m')}</SelectItem>
-                <SelectItem value="1800">{t('settings.sync.autoSyncOptions.30m')}</SelectItem>
-              </SelectContent>
-            </Select>
-          </SettingPanel>
-        </>
+        <FormItem title={t('settings.others')}>
+          <Item variant="outline">
+            <ItemMedia variant="icon"><RefreshCcw className="size-4" /></ItemMedia>
+            <ItemContent>
+              <ItemTitle>{t('settings.sync.autoSync')}</ItemTitle>
+              <ItemDescription>{t('settings.sync.giteeAutoSyncDesc')}</ItemDescription>
+            </ItemContent>
+            <ItemActions>
+              <Select
+                value={giteeAutoSync}
+                onValueChange={(value) => setGiteeAutoSync(value)}
+                disabled={!giteeAccessToken || giteeSyncRepoState !== SyncStateEnum.success}
+              >
+                <SelectTrigger className="w-[180px]">
+                  <SelectValue placeholder={t('settings.sync.autoSyncOptions.placeholder')} />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="disabled">{t('settings.sync.autoSyncOptions.disabled')}</SelectItem>
+                  <SelectItem value="10">{t('settings.sync.autoSyncOptions.10s')}</SelectItem>
+                  <SelectItem value="30">{t('settings.sync.autoSyncOptions.30s')}</SelectItem>
+                  <SelectItem value="60">{t('settings.sync.autoSyncOptions.1m')}</SelectItem>
+                  <SelectItem value="300">{t('settings.sync.autoSyncOptions.5m')}</SelectItem>
+                  <SelectItem value="1800">{t('settings.sync.autoSyncOptions.30m')}</SelectItem>
+                </SelectContent>
+              </Select>
+            </ItemActions>
+          </Item>
+        </FormItem>
       }
-      <SettingRow>
+      <div>
         {primaryBackupMethod === 'gitee' ? (
           <Button disabled variant="outline">
             {t('settings.sync.isPrimaryBackup', { type: 'Gitee' })}
@@ -231,7 +294,7 @@ export function GiteeSync() {
             {t('settings.sync.setPrimaryBackup')}
           </Button>
         )}
-      </SettingRow>
+      </div>
     </div>
   )
 }

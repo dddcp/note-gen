@@ -43,6 +43,7 @@ export function McpButton() {
             icon={selectedServerIds.length ? <ServerCrash className="size-4" /> : <Server className="size-4" />}
             tooltipText={t('selectServers')}
             size="icon"
+            side="bottom"
           />
         </div>
       </PopoverTrigger>
@@ -64,9 +65,9 @@ export function McpButton() {
                     toggleServerSelection(server.id)
                   }}
                 >
-                  <div className="flex flex-col flex-1 gap-1">
-                    <div className="flex items-center gap-2">
-                      <span className="font-medium">{server.name}</span>
+                  <div className="flex flex-col flex-1 gap-1 min-w-0">
+                    <div className="flex items-center gap-2 min-w-0">
+                      <span className="font-medium truncate">{server.name}</span>
                       <Badge variant="outline" className="text-[10px] px-1 py-0 h-4">
                         {server.type}
                       </Badge>

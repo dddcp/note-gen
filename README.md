@@ -1,5 +1,3 @@
-[![](https://s2.loli.net/2025/09/16/efymQrKu8obaswx.png)](https://skywork.ai/p/bY47ky)
-
 # NoteGen
 
 ![](https://img.shields.io/badge/free-pricing?logo=free&color=%20%23155EEF&label=pricing&labelColor=%20%23528bff)
@@ -24,7 +22,7 @@
 
 NoteGen is a cross-platform `Markdown` note-taking application dedicated to using AI to bridge recording and writing, organizing fragmented knowledge into a readable note.
 
-![](https://s2.loli.net/2025/06/13/UbVGPrhFl3etnQz.png)
+![](https://s2.loli.net/2025/12/22/jlpEP2c6ogwHhIA.png)
 
 ## Features
 
@@ -33,6 +31,7 @@ NoteGen is a cross-platform `Markdown` note-taking application dedicated to usin
 - 🆓 Free AI and sync solutions.
 - 📦 Out-of-the-box RAG support.
 - 🔌 MCP support for AI tool integration.
+- 🤖 Intelligent agents for automated note processing.
 - ✍️ Quick note-taking for fragmented information.
 - 📝 Native Markdown storage format.
 
@@ -41,18 +40,19 @@ NoteGen is a cross-platform `Markdown` note-taking application dedicated to usin
 | ![Windows](https://img.shields.io/badge/Windows-0078D4?logo=windows&logoColor=white&style=for-the-badge) | ![macOS](https://img.shields.io/badge/macOS-000000?logo=apple&logoColor=white&style=for-the-badge) | ![Linux](https://img.shields.io/badge/Linux-FCC624?logo=linux&logoColor=black&style=for-the-badge) | ![Android](https://img.shields.io/badge/Android-3DDC84?logo=android&logoColor=white&style=for-the-badge) | ![iOS](https://img.shields.io/badge/iOS-000000?logo=apple&logoColor=white&style=for-the-badge) |
 | --- | --- | --- | --- | --- |
 | ✅ beta | ✅ beta | ✅ beta | 🛠️ alpha | 🛠️ alpha |
-| [Download](https://notegen.top/en/docs/download#desktop-beta) | [Download](https://notegen.top/en/docs/download#desktop-beta) | [Download](https://notegen.top/en/docs/download#desktop-beta) | [Download](https://notegen.top/en/docs/download#android) | Self-compiled |
+| [Download](https://notegen.top/en/docs/download#desktop-beta) | [Download](https://notegen.top/en/docs/download#desktop-beta) | [Download](https://notegen.top/en/docs/download#desktop-beta) | [Download](https://notegen.top/en/docs/download#android) | [TestFlight](https://testflight.apple.com/join/8KjFRTCq) |
 
 > [UpgradeLink offers application upgrade and download services](http://upgrade.toolsetlink.com/upgrade/example/tauri-example.html)
 
 ## From Recording to Writing
 
-Conventional note-taking applications typically don't provide recording functionality. Users need to manually copy and paste content for recording, which greatly reduces efficiency. When faced with scattered recorded content, it requires significant effort to organize.
+Traditional note-taking apps typically don't offer note-taking functionality, but NoteGen makes it easier for you to record scattered knowledge points and avoid disrupting your train of thought while taking notes.
 
-NoteGen is divided into `Recording` and `Writing` pages, with the following relationship:
+NoteGen is divided into three parts: Recording, Notes, and AI Dialogue. They have the following features: 
 
-- Recordings can be organized into notes and transferred to the writing page for in-depth composition.
-- During writing, you can insert recordings at any time.
+- You don't need to consider the order and logic of recording, AI will help you organize the notes into well-organized and coherent ones.
+- AI Dialogue is a feature that allows you to interact with AI in real-time, helping you to better understand and remember the content you are recording.
+- The note-taking feature can help you optimize the details of your notes independently.
 
 ## Contribute
 
@@ -107,7 +107,3 @@ We also thank other partners for their service support
     <img src="https://s2.loli.net/2025/09/16/mTzMCQ8tZLfJNk5.png" />
   </a>
 </div>
-
-## Star History
-
-[![Star History Chart](https://api.star-history.com/svg?repos=codexu/note-gen&type=Date)](https://www.star-history.com/#codexu/note-gen&Date)

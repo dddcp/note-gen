@@ -6,7 +6,6 @@ import {
   UserRoundCog,
   Drama,
   FolderOpen,
-  Package,
   Database,
   DatabaseBackup,
   ImageUp,
@@ -15,7 +14,10 @@ import {
   KeyboardIcon,
   Volume2,
   Settings,
-  Puzzle
+  Puzzle,
+  Sparkles,
+  MessageSquare,
+  PenTool,
 } from "lucide-react"
 
 const baseConfig = [
@@ -26,6 +28,18 @@ const baseConfig = [
   {
     icon: <Settings className="size-4 md:size-6" />,
     anchor: 'general',
+  },
+  {
+    icon: <MessageSquare className="size-4 md:size-6" />,
+    anchor: 'chat',
+  },
+  {
+    icon: <FileCog className="size-4 md:size-6" />,
+    anchor: 'editor',
+  },
+  {
+    icon: <PenTool className="size-4 md:size-6" />,
+    anchor: 'record',
   },
   '-',
   {
@@ -46,16 +60,16 @@ const baseConfig = [
     anchor: 'ai',
   },
   {
-    icon: <Package className="size-4 md:size-6" />,
-    anchor: 'defaultModel',
-  },
-  {
     icon: <Book className="size-4 md:size-6" />,
     anchor: 'rag',
   },
   {
     icon: <Puzzle className="size-4 md:size-6" />,
     anchor: 'mcp',
+  },
+  {
+    icon: <Sparkles className="size-4 md:size-6" />,
+    anchor: 'skills',
   },
   {
     icon: <Drama className="size-4 md:size-6" />,
@@ -71,10 +85,6 @@ const baseConfig = [
     anchor: 'file',
   },
   {
-    icon: <FileCog className="size-4 md:size-6" />,
-    anchor: 'editor',
-  },
-  {
     icon: <KeyboardIcon className="size-4 md:size-6" />,
     anchor: 'shortcuts',
   },
@@ -84,7 +94,7 @@ const baseConfig = [
   },
   {
     icon: <Volume2 className="size-4 md:size-6" />,
-    anchor: 'readAloud',
+    anchor: 'audio',
   },
   '-',
   {
@@ -95,7 +105,7 @@ const baseConfig = [
 
 export default baseConfig
 
-export type ModelType = 'chat' | 'image' | 'video' | 'audio' | 'embedding' | 'rerank';
+export type ModelType = 'chat' | 'image' | 'video' | 'tts' | 'stt' | 'embedding' | 'rerank';
 
 export interface ModelConfig {
   id: string

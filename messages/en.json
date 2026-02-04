@@ -16,6 +16,7 @@
     "pin": "Pin",
     "unpin": "Unpin",
     "settings": "Settings",
+    "back": "Back",
     "sync": "Sync",
     "language": "Language",
     "confirm": "Confirm",
@@ -23,9 +24,16 @@
     "prompt": "Prompt",
     "success": "Success",
     "error": "Failed",
-    "defaultFileName": "Untitled"
+    "defaultFileName": "Untitled",
+    "restartToApply": ", please restart the application for the configuration to take effect",
+    "unsaved": "Unsaved",
+    "saving": "Saving..."
   },
   "settings": {
+    "defaultModels": {
+      "title": "Default Models"
+    },
+    "others": "Advanced",
     "general": {
       "title": "General Settings",
       "desc": "Here, you can configure basic application settings, including interface theme, language and other options.",
@@ -48,6 +56,149 @@
           "title": "Interface Scale",
           "desc": "Adjust the overall scale of the application interface",
           "placeholder": "Select scale ratio"
+        },
+        "contentTextScale": {
+          "title": "Content Scale",
+          "desc": "Adjust the text size in editor and chat Markdown content"
+        },
+        "fileManagerTextSize": {
+          "title": "File Manager Text Size",
+          "desc": "Adjust the text size of file and folder lists in the file manager"
+        },
+        "recordTextSize": {
+          "title": "Record Text Size",
+          "desc": "Adjust the text size of record items in the record list"
+        },
+        "customCss": {
+          "title": "Custom CSS",
+          "desc": "Add custom CSS styles to override the application's default styles",
+          "button": "Edit CSS",
+          "dialogTitle": "Custom CSS",
+          "dialogDesc": "Enter custom CSS code below to override the application's default styles. Click save to apply changes.",
+          "placeholder": "Enter custom CSS code here",
+          "save": "Save",
+          "cancel": "Cancel"
+        },
+        "customTheme": {
+          "title": "Custom Theme Colors",
+          "desc": "Customize application theme colors including background, foreground, border, etc.",
+          "button": "Edit Colors",
+          "dialogTitle": "Custom Theme Colors",
+          "dialogDesc": "Configure custom theme colors. Color changes are saved and applied in real-time, overriding both light and dark themes.",
+          "close": "Close",
+          "reset": "Reset All",
+          "tabs": {
+            "custom": "Custom",
+            "presets": "Presets",
+            "importExport": "Import/Export"
+          },
+          "export": {
+            "title": "Export Color Scheme",
+            "button": "Generate Export Code",
+            "placeholder": "Click the generate button to export current color scheme as code"
+          },
+          "import": {
+            "title": "Import Color Scheme",
+            "button": "Import Scheme",
+            "placeholder": "Paste the JSON code of the color scheme"
+          },
+          "colors": {
+            "background": "Background",
+            "foreground": "Foreground",
+            "card": "Card Background",
+            "cardForeground": "Card Foreground",
+            "primary": "Primary",
+            "primaryForeground": "Primary Foreground",
+            "secondary": "Secondary",
+            "secondaryForeground": "Secondary Foreground",
+            "third": "Third",
+            "thirdForeground": "Third Foreground",
+            "muted": "Muted",
+            "mutedForeground": "Muted Foreground",
+            "accent": "Accent",
+            "accentForeground": "Accent Foreground",
+            "border": "Border",
+            "shadow": "Shadow"
+          },
+          "presets": {
+            "apply": "Apply",
+            "reset": {
+              "name": "Reset to Default"
+            },
+            "default": {
+              "name": "Default White"
+            },
+            "ocean": {
+              "name": "Ocean Blue"
+            },
+            "forest": {
+              "name": "Forest Green"
+            },
+            "sunset": {
+              "name": "Sunset Red"
+            },
+            "lavender": {
+              "name": "Lavender Purple"
+            },
+            "midnight": {
+              "name": "Midnight Dark"
+            },
+            "deepSea": {
+              "name": "Deep Sea"
+            },
+            "darkForest": {
+              "name": "Dark Forest"
+            },
+            "darkViolet": {
+              "name": "Dark Violet"
+            },
+            "coralWarm": {
+              "name": "Coral Warm"
+            },
+            "slateGray": {
+              "name": "Slate Gray"
+            },
+            "darkGold": {
+              "name": "Dark Gold"
+            },
+            "beigeWarm": {
+              "name": "Beige Warm"
+            },
+            "beigeDark": {
+              "name": "Beige Dark"
+            }
+          }
+        },
+        "tray": {
+          "enabled": {
+            "title": "Enable Tray",
+            "desc": "Choose to minimize to tray or close app when window is closed"
+          }
+        }
+      },
+      "tools": {
+        "title": "Tool Settings",
+        "desc": "Configure display and sorting of various toolbar buttons",
+        "chatToolbar": {
+          "title": "Chat Toolbar",
+          "desc": "Customize the display order and visibility of chat toolbar buttons",
+          "button": "Configure",
+          "dialogTitle": "Configure Chat Toolbar",
+          "dialogDesc": "Drag tools to adjust order, use switches to show or hide",
+          "groups": {
+            "pc": "PC",
+            "mobile": "Mobile",
+            "bottom": "Bottom Toolbar",
+            "topLeft": "Top Toolbar - Left",
+            "topRight": "Top Toolbar - Right"
+          }
+        },
+        "recordToolbar": {
+          "title": "Record Toolbar",
+          "desc": "Customize the display order and visibility of record toolbar buttons",
+          "button": "Configure",
+          "dialogTitle": "Configure Record Toolbar",
+          "dialogDesc": "Drag tools to adjust order, use switches to show or hide"
         }
       }
     },
@@ -124,11 +275,82 @@
       "testAllFailed": "Connection test failed",
       "save": "Save",
       "cancel": "Cancel",
-      "delete": "Delete"
+      "delete": "Delete",
+      "importJson": "Import JSON",
+      "jsonImportTitle": "Import Server Configuration from JSON",
+      "jsonImportDesc": "Paste the mcpServers configuration format for MCP servers",
+      "jsonInput": "JSON Configuration",
+      "jsonInputHelp": "Supports mcpServers format, automatically uses server name as key",
+      "jsonRequired": "Please enter JSON configuration",
+      "jsonEmpty": "JSON configuration cannot be empty",
+      "jsonInvalidJson": "Invalid JSON format",
+      "jsonInvalidFormat": "Invalid configuration format, must contain name and type fields",
+      "jsonInvalidType": "Server type must be stdio or http",
+      "jsonMissingCommand": "stdio type server must specify command",
+      "jsonMissingUrl": "http type server must specify url",
+      "jsonImportSuccess": "Successfully imported {count} server(s)",
+      "jsonImportSkipped": "Skipped {count} existing server(s)",
+      "jsonImportNoServers": "No servers were imported",
+      "import": "Import"
+    },
+    "skills": {
+      "title": "Skills",
+      "desc": "Skills are reusable AI capability packages that allow AI assistants to automatically apply specific behavioral patterns based on tasks.",
+      "enable": "Enable Skills",
+      "enableDesc": "When enabled, AI can use configured Skills",
+      "autoMatch": "Auto-match Skills",
+      "autoMatchDesc": "Automatically select appropriate Skills based on user input",
+      "project": "Workspace Skills",
+      "global": "Global Skills",
+      "globalPath": "Global Skills Storage Location",
+      "openInFileManager": "Open in File Manager",
+      "createSkill": "Create Skill",
+      "editSkill": "Edit Skill",
+      "deleteSkill": "Delete Skill",
+      "exportSkill": "Export Skill",
+      "importSkill": "Import Skill",
+      "selectSkillZip": "Select Skill zip file",
+      "importSuccess": "Import successful",
+      "importError": "Import failed",
+      "imported": "imported",
+      "importing": "Importing...",
+      "skillName": "Skill Name",
+      "skillDescription": "Description",
+      "skillVersion": "Version",
+      "skillAuthor": "Author",
+      "allowedTools": "Allowed Tools",
+      "userInvocable": "Show in Slash Menu",
+      "instructions": "Instructions",
+      "instructionsPlaceholder": "Enter detailed instructions for AI...",
+      "importHelp": "Support importing Skills in zip format. The zip file must contain a SKILL.md file.",
+      "metadata": "Metadata",
+      "content": "Instructions",
+      "noSkills": "No Skills yet",
+      "noSkillsDesc": "Create or import Skills to get started",
+      "noSkillsGlobal": "No global Skills yet",
+      "noSkillsGlobalDesc": "Create or import Skills to use across all projects",
+      "emptyWorkspace": "No Skills in workspace",
+      "emptyWorkspaceDesc": "Create SKILL.md files in the skills folder to add Skills",
+      "basicSettings": "Basic Settings",
+      "installedGlobalSkills": "Installed Global Skills",
+      "nameRequired": "Please enter Skill name",
+      "descriptionRequired": "Please enter description",
+      "namePlaceholder": "note-organizer",
+      "versionPlaceholder": "1.0.0",
+      "descriptionPlaceholder": "Automatically organize and optimize note structure...",
+      "authorPlaceholder": "Your Name",
+      "descriptionHelp": "Used for AI matching, describes the Skill's functionality and use cases",
+      "allowedToolsHelp": "These tools can be used without user confirmation",
+      "userInvocableHelp": "Users can manually trigger via /skill-name",
+      "instructionsHelp": "Detailed instructions for AI, supports Markdown format",
+      "deleteSkillTitle": "Delete Skill",
+      "deleteSkillDesc": "Are you sure you want to delete this Skill? This action cannot be undone.",
+      "skillDeleted": "Skill deleted successfully"
     },
     "editor": {
-      "title": "Markdown Editor",
-      "desc": "Here, you can customize the Markdown editor, creating a writing experience tailored to your needs.",
+      "title": "Editor Settings",
+      "interfaceSettings": "Interface Settings",
+      "desc": "Here, you can customize the editor, creating a writing experience tailored to your needs.",
       "typewriterMode": "Typewriter Mode",
       "typewriterModeDesc": "In typewriter mode, the editor will simulate a typewriter effect, helping you better immerse in writing.",
       "outlineEnable": "Default outline enabled",
@@ -146,7 +368,61 @@
         "panoramaView": "Panorama view"
       },
       "enableLineNumber": "Enable line number",
-      "enableLineNumberDesc": "Enabling it will make the line number visible in code blocks."
+      "enableLineNumberDesc": "Enabling it will make the line number visible in code blocks.",
+      "completion": {
+        "title": "Auto Completion",
+        "model": {
+          "title": "Quick Completion Model",
+          "desc": "Select the model for AI inline completion in editor"
+        }
+      },
+      "commit": {
+        "title": "Auto Commit Message",
+        "model": {
+          "title": "Commit Model",
+          "desc": "For automatically generating Git commit messages based on file changes"
+        }
+      }
+    },
+    "record": {
+      "title": "Record Settings",
+      "desc": "Configure record-related settings here, including record description and toolbar configuration.",
+      "model": {
+        "title": "Model Settings",
+        "markDesc": {
+          "title": "Record Description",
+          "desc": "For processing OCR-recognized records and generating record descriptions"
+        }
+      },
+      "toolbar": {
+        "title": "Toolbar Settings",
+        "recordToolbar": {
+          "title": "Record Toolbar",
+          "desc": "Customize the visibility and order of record toolbar buttons",
+          "button": "Configure",
+          "text": {
+            "desc": "Record text content"
+          },
+          "recording": {
+            "desc": "Voice recording function"
+          },
+          "scan": {
+            "desc": "Scan and recognize text from images"
+          },
+          "image": {
+            "desc": "Upload images to notes"
+          },
+          "link": {
+            "desc": "Record web links"
+          },
+          "file": {
+            "desc": "Upload files to notes"
+          },
+          "todo": {
+            "desc": "Create todo items"
+          }
+        }
+      }
     },
     "uploadStore": {
       "uploadConfirm": "Upload configuration please ensure the sync repository is private, otherwise the data will be leaked!",
@@ -168,6 +444,8 @@
       "updateDownloading": "Updating {downloaded} / {contentLength}",
       "updateInstalled": "Restart app",
       "noUpdate": "Current version is the latest",
+      "ignoreVersion": "Ignore this version",
+      "ignoreVersionSuccess": "This version update has been ignored",
       "items": {
         "home": {
           "title": "Home",
@@ -219,11 +497,15 @@
         },
         "placeholder": {
           "title": "AI Suggestion",
-          "desc": "AI suggestion prompts are used for content generation in the placeholder of the record page AI conversation."
+          "desc": "AI suggestion prompt for generating placeholder content in the record page AI conversation."
         },
-        "translate": {
-          "title": "Translation",
-          "desc": "Used for translation content scenes."
+        "completion": {
+          "title": "Fast Completion",
+          "desc": "AI inline completion for Markdown editor, similar to GitHub Copilot, quickly generates continuation content."
+        },
+        "commit": {
+          "title": "Auto Generate Commit Message",
+          "desc": "Used to automatically generate Git commit messages, intelligently generating descriptive commit messages based on file content changes."
         },
         "embedding": {
           "title": "Embedding Model",
@@ -232,21 +514,40 @@
         "reranking": {
           "title": "Reranking Model",
           "desc": "Used for reordering and optimizing search results."
+        },
+        "condense": {
+          "title": "Condense Model",
+          "desc": "Used to compress historical conversation content to save token usage"
         }
       }
     },
-    "readAloud": {
-      "title": "Read Aloud",
-      "desc": "Here, you can configure read aloud related settings to provide voice playback functionality for chat content.",
-      "noModel": "Do not use",
-      "options": {
-        "audioModel": {
-          "title": "Audio Model",
+    "audio": {
+      "title": "Audio Settings",
+      "desc": "Here, you can configure audio settings, including text-to-speech (TTS) and speech-to-text (STT) functions.",
+      "tts": {
+        "title": "Text-to-Speech (TTS)",
+        "desc": "Configure read aloud functionality to provide voice playback for chat content.",
+        "model": {
+          "title": "TTS Model",
           "desc": "Select the AI model for text-to-speech conversion, supporting various voice types and parameter configurations."
         },
         "speed": {
           "title": "Speech Rate",
-          "desc": "Adjust the playback speed of the voice, ranging from 0.25x to 4x speed, with 1x being the normal speed."
+          "desc": "Adjust the playback speed of the voice, ranging from 0.5x to 2x speed, with 1x being the normal speed."
+        }
+      },
+      "stt": {
+        "title": "Speech-to-Text (STT)",
+        "desc": "Configure voice recognition to convert speech to text records.",
+        "mode": {
+          "title": "Recognition Mode",
+          "desc": "Choose between browser built-in recognition or AI model recognition",
+          "builtin": "Built-in",
+          "model": "AI Model"
+        },
+        "model": {
+          "title": "STT Model",
+          "desc": "Select the AI model for speech recognition, supporting real-time voice-to-text conversion."
         }
       }
     },
@@ -308,7 +609,16 @@
         "selfHosted": "Self-hosted Instance",
         "selfHostedDesc": "Enter your self-hosted GitLab server address (e.g., https://gitlab.example.com)"
       },
-      "gitlabAccessTokenDesc": "Create a personal access token in {instanceDisplayName}, requires api permission",
+      "gitlabAccessTokenDesc": "Create a personal access token at {instanceDisplayName}, requires api permission",
+      "giteaInstanceType": "Gitea Instance Type",
+      "giteaInstanceTypeDesc": "Select the type of Gitea instance to connect to",
+      "giteaInstanceTypePlaceholder": "Select Gitea Instance Type",
+      "giteaInstanceTypeOptions": {
+        "selfHosted": "Self-hosted Instance",
+        "selfHostedDesc": "Enter your self-hosted Gitea server address (e.g., https://gitea.example.com)"
+      },
+      "giteaAccessTokenDesc": "Create a personal access token at {instanceDisplayName}, requires full repository permission",
+      "autoSync": "Auto Sync",
       "autoSyncOptions": {
         "placeholder": "Select auto sync time",
         "disabled": "Disabled",
@@ -317,6 +627,24 @@
         "1m": "1 minute",
         "5m": "5 minutes",
         "30m": "30 minutes"
+      },
+      "exclusions": {
+        "title": "Sync Exclusion Configuration",
+        "desc": "The following settings will not be synced across devices as they are device-specific",
+        "workspacePath": "Workspace Path",
+        "workspaceHistory": "Workspace History",
+        "assetsPath": "Assets Path",
+        "uiScale": "UI Scale",
+        "contentTextScale": "Content Text Scale",
+        "customCss": "Custom CSS",
+        "reason": "These settings may differ across devices, excluding them from sync prevents path errors and other issues"
+      },
+      "settingsSync": {
+        "uploadSuccess": "Settings uploaded successfully",
+        "uploadFailed": "Failed to upload settings",
+        "downloadSuccess": "Settings downloaded successfully",
+        "downloadFailed": "Failed to download settings",
+        "autoSync": "Settings will be automatically synced during upload/download (excluding device-specific settings like workspace path)"
       }
     },
     "imageHosting": {
@@ -404,6 +732,10 @@
     "imageMethod": {
       "title": "Image Recognition",
       "desc": "Here, you can configure image recognition related settings, supporting OCR and VLM two ways.",
+      "enable": {
+        "title": "Enable Image Recognition",
+        "desc": "When enabled, images will be automatically recognized during screenshot and image recording. When disabled, image recognition will be skipped."
+      },
       "setPrimary": "Set as default",
       "isPrimary": "{type} has been set as default",
       "ocr": {
@@ -488,6 +820,7 @@
     },
     "template": {
       "title": "Template",
+      "desc": "Here you can create and manage custom organization templates to help AI organize record content according to your needs.",
       "customTemplate": "Custom Template",
       "addTemplate": "Add Custom Template",
       "deleteConfirm": "Are you sure to delete this template?",
@@ -516,18 +849,136 @@
       "windowPin": "Window Pin"
     },
     "theme": {
-      "title": "Appearance",
-      "appTheme": "Application theme",
-      "previewTheme": "Preview content theme",
-      "codeTheme": "Code block highlight theme",
-      "selectTheme": "Select Theme"
+      "title": "Theme Settings",
+      "desc": "Customize application theme colors"
     },
     "dev": {
       "title": "Developer",
+      "desc": "Here you can configure developer options, including network proxy, data cleanup, and configuration file management.",
       "clearData": "Clear Data",
       "clearDataConfirm": "Are you sure to clear data?",
       "proxy": "Proxy, used to solve network problems, after configuration, it is recommended to restart the application.",
-      "proxyPlaceholder": "Enter proxy address"
+      "proxyPlaceholder": "Enter proxy address",
+      "proxyTitle": "Network Proxy",
+      "clearDataTitle": "Clear Data",
+      "clearDataDesc": "Clear data information, including system configuration and database (including records).",
+      "clearFileTitle": "Clear Files",
+      "clearFileDesc": "Clear files, including images and articles.",
+      "clearButton": "Clear",
+      "configFileTitle": "Config File Management",
+      "configFileDesc": "Import and export configuration files. Importing will overwrite current configuration and take effect after restart.",
+      "importConfigTitle": "Import Config File",
+      "exportConfigTitle": "Export Config File",
+      "importConfigSuccessMobile": "Config downloaded successfully, please restart the app manually",
+      "exportConfigSuccess": "Export successful",
+      "importButton": "Import",
+      "exportButton": "Export"
+    },
+    "chat": {
+      "title": "Chat Settings",
+      "desc": "Configure chat-related settings here, including summary generation.",
+      "primaryModel": {
+        "title": "Primary Model",
+        "model": {
+          "title": "Primary Chat Model",
+          "desc": "Select the main AI model for daily conversations"
+        }
+      },
+      "toolbar": {
+        "title": "Toolbar Settings",
+        "chatToolbar": {
+          "title": "Chat Toolbar",
+          "desc": "Customize the visibility and order of chat toolbar buttons",
+          "button": "Configure",
+          "modelSelect": {
+            "desc": "Switch the AI model for conversation"
+          },
+          "promptSelect": {
+            "desc": "Select the preset prompt for the conversation"
+          },
+          "chatLanguage": {
+            "desc": "Set the language for the conversation"
+          },
+          "chatLink": {
+            "title": "Link Tag",
+            "desc": "Link note content of the current tag to conversation context"
+          },
+          "fileLink": {
+            "desc": "Link files or folders to the conversation context"
+          },
+          "mcpButton": {
+            "desc": "Select and connect MCP servers to use external tools"
+          },
+          "ragSwitch": {
+            "title": "Knowledge Base",
+            "desc": "Enable vector knowledge base retrieval"
+          },
+          "clipboardMonitor": {
+            "title": "Clipboard Monitor",
+            "desc": "Automatically monitor clipboard content changes"
+          },
+          "newChat": {
+            "desc": "Start a new conversation"
+          },
+          "clearContext": {
+            "desc": "Clear conversation context, keep chat history"
+          },
+          "clearChat": {
+            "desc": "Delete all chat records"
+          }
+        }
+      },
+      "condense": {
+        "title": "Conversation Summary",
+        "enable": {
+          "title": "Enable Summary",
+          "desc": "Automatically compress long conversations to save token usage"
+        },
+        "model": {
+          "title": "Summary Model",
+          "desc": "Select the AI model for generating summaries",
+          "placeholder": "Use primary model"
+        },
+        "threshold": {
+          "title": "Trigger Threshold",
+          "desc": "Check compression when AI messages exceed this count"
+        },
+        "minToken": {
+          "title": "Min Token Count",
+          "desc": "Only compress messages exceeding this token count"
+        },
+        "keepLatest": {
+          "title": "Keep Latest",
+          "desc": "Keep the latest N AI messages uncompressed"
+        },
+        "maxLength": {
+          "title": "Max Summary Length",
+          "desc": "Control the maximum word count of generated summaries"
+        },
+        "prompt": {
+          "title": "Custom Summary Prompt",
+          "desc": "Customize the prompt template for generating summaries",
+          "label": "Prompt Template",
+          "placeholder": "Enter custom prompt...",
+          "help": "Use {content} as a placeholder for original content",
+          "save": "Save",
+          "reset": "Reset to Default"
+        }
+      },
+      "conversationTitle": {
+        "title": "Conversation Title",
+        "model": {
+          "title": "Title Generation Model",
+          "desc": "Select the AI model for generating conversation titles"
+        }
+      },
+      "inspiration": {
+        "title": "Inspiration Model",
+        "model": {
+          "title": "Quick Prompt Generator",
+          "desc": "Generate quick prompt suggestions to help users start conversations"
+        }
+      }
     },
     "ai": {
       "title": "Model Management",
@@ -558,7 +1009,8 @@
         "chat": "Chat",
         "image": "Image",
         "video": "Video",
-        "audio": "Audio",
+        "tts": "Text-to-Speech",
+        "stt": "Speech-to-Text",
         "embedding": "Embedding",
         "rerank": "Reranking"
       },
@@ -598,9 +1050,14 @@
           "desc": "Used for text vectorization and semantic search"
         },
         "visionModel": {
-          "name": "THUDM/GLM-4.1V-9B-Thinking",
+          "name": "OpenGVLab/InternVL2-8B",
           "type": "Vision Model",
-          "desc": "Supports image understanding and OCR recognition"
+          "desc": "Supports image understanding and visual Q&A"
+        },
+        "completionModel": {
+          "name": "Fast Completion",
+          "type": "Completion Model",
+          "desc": "AI inline completion for Markdown editor, similar to GitHub Copilot, quickly generates continuation content"
         },
         "poweredBy": "Powered by SiliconFlow"
       }
@@ -681,6 +1138,7 @@
       "ai": "AI content recognition",
       "upload": "Upload to image host",
       "jsdelivr": "Notify jsdelivr cache",
+      "save": "Save",
       "recording": "Recording...",
       "recorded": "Recorded",
       "record": "Record",
@@ -695,10 +1153,15 @@
         "image": "Image",
         "screenshot": "Screenshot",
         "text": "Text",
+        "recording": "Recording",
         "file": "File",
         "link": "Link",
+        "todo": "Todo",
+        "pdf": "PDF",
         "upload": "Upload Record",
-        "download": "Download Record"
+        "download": "Download Record",
+        "uploadTo": "Sync from local to {provider}",
+        "downloadFrom": "Sync from {provider} to local"
       },
       "uploadSuccess": "Record upload success",
       "downloadSuccess": "Record download success",
@@ -718,17 +1181,45 @@
         "newToken": "Create access token",
         "newTokenDesc": "New token must be configured with repo permission, configuration will automatically create file repository (private) and image repository."
       },
+      "imageGallery": {
+        "expand": "Expand",
+        "collapse": "Collapse"
+      },
       "text": {
         "title": "Record Text",
         "description": "Record a piece of text, which will be inserted into the appropriate position when organizing notes.",
         "characterCount": "{count} characters",
-        "save": "Save"
+        "save": "Save",
+        "autoReadClipboard": "Auto-read clipboard text"
       },
 
       "link": {
         "title": "Record Link",
         "description": "Enter a webpage link, and the system will automatically crawl the page content and save it",
-        "save": "Save"
+        "save": "Save",
+        "autoReadClipboard": "Auto-read clipboard link"
+      },
+      "todo": {
+        "title": "Todo Record",
+        "description": "Create todo items to manage your tasks",
+        "titlePlaceholder": "Enter todo title...",
+        "descriptionPlaceholder": "Enter detailed description (optional)",
+        "priority": "Priority",
+        "priorityLow": "Low",
+        "priorityMedium": "Medium",
+        "priorityHigh": "High",
+        "dateRange": "Date Range",
+        "dateRangePlaceholder": "Select date range",
+        "dueDate": "Due Date",
+        "dueDatePlaceholder": "Select date",
+        "save": "Create Todo",
+        "saveEdit": "Save",
+        "edit": "Edit Todo",
+        "editDescription": "Modify the details of the todo item",
+        "cancel": "Cancel",
+        "selectTag": "Select Tag",
+        "completed": "Completed",
+        "uncompleted": "Uncompleted"
       },
       "clipboard": {
         "detectedImage": "Clipboard image detected",
@@ -743,13 +1234,41 @@
         "rename": "Rename",
         "delete": "Delete",
         "pin": "Pin",
-        "unpin": "Unpin"
+        "unpin": "Unpin",
+        "newTag": "New Tag",
+        "newTagPlaceholder": "Enter tag name...",
+        "add": "Add"
       },
       "mark": {
+        "empty": "No records",
+        "emptyHint": "Use the toolbar at the top to create your first record!",
         "type": {
           "text": "Text"
         },
         "chat": {
+          "modeSelect": {
+            "chat": "Chat",
+            "agent": "Agent"
+          },
+          "agent": {
+            "running": "Agent Running",
+            "thinking": "Thinking",
+            "acting": "Acting",
+            "observation": "Observation",
+            "thought": "Thought",
+            "action": "Action",
+            "toolCalls": "Tool Calls",
+            "confirmation": {
+              "title": "Confirm Action",
+              "description": "The agent wants to perform the following action. Please confirm to continue.",
+              "tool": "Tool",
+              "parameters": "Parameters",
+              "cancel": "Cancel",
+              "confirm": "Confirm",
+              "confirmed": "Confirmed",
+              "cancelled": "Cancelled"
+            }
+          },
           "placeholder": {
             "default": "Ask questions or organize your notes into an article...",
             "noApiKey": "API Key not configured, AI chat feature is unavailable..."
@@ -772,7 +1291,8 @@
             }
           },
           "messageControl": {
-            "words": "words"
+            "words": "words",
+            "summary": "Summary"
           },
           "mcp": {
             "maxIterationsReached": "Maximum tool call iterations reached",
@@ -787,20 +1307,28 @@
             "error": "Failed"
           },
           "empty": {
-            "features": [
-              {
-                "chat": "Chat with AI bot"
-              },
-              {
-                "linked": "Linked with your records or notes"
-              },
-              {
-                "clipboard": "Recognize clipboard records or images"
-              },
-              {
-                "organize": "Organize your records into notes"
-              }
-            ]
+            "title": "Start AI Conversation",
+            "subtitle": "Use Chat or Agent mode to interact with AI",
+            "currentModel": "Current Model",
+            "currentPrompt": "Current Prompt",
+            "currentMode": "Conversation Mode",
+            "noModel": "No model set",
+            "noPrompt": "No prompt set",
+            "configureModel": "Configure Model",
+            "recentConversations": "Recent Conversations",
+            "deleteConversation": "Delete conversation",
+            "viewMore": "View more",
+            "messages": "messages",
+            "searchPlaceholder": "Search conversations...",
+            "noMatchingConversations": "No matching conversations found",
+            "noConversationHistory": "No conversation history",
+            "quickPrompts": {
+              "title": "Quick Start",
+              "writeNote": "Help me write a note",
+              "summarize": "Help me summarize this content",
+              "brainstorm": "Help me brainstorm ideas",
+              "explain": "Help me explain this concept"
+            }
           },
           "content": {
             "organize": "Organize your records into an article:"
@@ -862,12 +1390,12 @@
         "restore": "Restore",
         "delete": "Delete",
         "deleteConfirm": "Are you sure to delete?",
-        "moveTag": "Move to Tag",
+        "moveTag": "Move Tag",
         "convertTo": "Convert to {type}",
         "copyLink": "Copy Link",
         "copied": "Copied to clipboard!",
         "regenerateDesc": "Regenerate Description",
-        "viewFolder": "View in Folder",
+        "viewFolder": "View Folder",
         "viewFile": "View Original File",
         "deleteForever": "Delete Forever",
         "sortByName": "Sort by Name",
@@ -881,15 +1409,27 @@
         "enableVectorDb": "Enable Vector Database",
         "multiSelect": "Multi Select",
         "exitMultiSelect": "Exit Multi Select",
-        "selectAll": "Select All",
-        "deselectAll": "Deselect All",
-        "selectedCount": "Selected {count} items",
-        "moveSelectedTags": "Move selected {count} items",
-        "deleteSelected": "Delete selected {count} items",
-        "deleteSelectedForever": "Delete selected {count} items forever"
+        "organizeNotes": "Organize Notes",
+        "organizeSuccess": "Notes organized successfully: {title}",
+        "organizeError": "Failed to organize notes",
+        "currentTag": "Current Tag",
+        "text": "Record Text",
+        "recording": "Recording Record",
+        "scan": "Scan Image",
+        "image": "Upload Image",
+        "link": "Record Link",
+        "file": "Upload File",
+        "todo": "Todo Record"
+      },
+      "list": {
+        "title": "Records"
       }
     },
     "chat": {
+      "condensing": "Condensing context...",
+      "condensed": {
+        "message": "Condensed {count} historical messages"
+      },
       "empty": {
         "features": [
           {
@@ -914,6 +1454,11 @@
       "confirmRemoveDescription": "Please note that deleting this tag will also delete all records within it. Please confirm again.",
       "content": {
         "organize": "Organize your records into an article:"
+      },
+      "quote": {
+        "lineSingle": "Quoted from {fileName} line {line}",
+        "lineRange": "Quoted from {fileName} lines {startLine}-{endLine}",
+        "noLine": "Quoted from {fileName}"
       },
       "note": {
         "organize": "Organize",
@@ -960,6 +1505,7 @@
         },
         "send": "Send",
         "stop": "Stop",
+        "stopped": "Conversation stopped",
         "terminate": "Terminate",
         "tagLink": {
           "on": "Linked to tag",
@@ -974,9 +1520,9 @@
           "tooltip": "Select prompt",
           "placeholder": "Search prompts"
         },
-        "clearChat": "Clear conversation",
-        "clearContext": {
-          "tooltip": "Clear context"
+        "newChat": "New Chat",
+        "mcp": {
+          "tooltip": "MCP server"
         },
         "chatLanguage": {
           "tooltip": "Select chat language",
@@ -989,9 +1535,41 @@
         },
         "modeSelect": {
           "tooltip": "Select input mode",
-          "chat": "Chat Mode",
-          "gen": "Organize Mode",
-          "translate": "Translate Mode"
+          "chat": "Chat mode",
+          "gen": "Organize mode",
+          "translate": "Translate mode"
+        },
+        "chatModeSelect": {
+          "chatDescription": "Quick conversation, read-only mode",
+          "agentDescription": "Smart assistant, can execute actions"
+        },
+        "attachImage": "Attach images",
+        "imageSelector": {
+          "title": "Select Images",
+          "local": "Local Files",
+          "records": "From Records",
+          "selectFiles": "Select Local Images",
+          "noRecords": "No image records available",
+          "cancel": "Cancel",
+          "confirm": "Confirm"
+        },
+        "agent": {
+          "running": "Agent Running",
+          "thinking": "Thinking",
+          "analyzingRequest": "Agent is analyzing your request...",
+          "acting": "Acting",
+          "observation": "Observation",
+          "thought": "Thought",
+          "action": "Action",
+          "toolCalls": "Tool Calls",
+          "confirmation": {
+            "title": "Confirm Action",
+            "description": "The agent wants to perform the following action. Please confirm to continue.",
+            "tool": "Tool",
+            "parameters": "Parameters",
+            "cancel": "Cancel",
+            "confirm": "Confirm"
+          }
         },
         "fileLink": {
           "tooltip": "Link File",
@@ -1023,6 +1601,7 @@
       },
       "messageControl": {
         "words": "words",
+        "summary": "Summary",
         "readAloud": "Read Aloud",
         "playing": "Playing",
         "loading": "Loading",
@@ -1031,7 +1610,8 @@
         "copied": "Copied"
       },
       "ragSources": {
-        "label": "Referenced Files"
+        "label": "Found {count} notes in knowledge base",
+        "openFile": "Open file"
       },
       "preview": {
         "close": "Close",
@@ -1058,6 +1638,11 @@
     "placeholder": "Search notes and articles...",
     "results": "{count} search results",
     "noResults": "No search results",
+    "tryDifferentKeywords": "Try using different keywords",
+    "mode": {
+      "fuzzy": "Fuzzy",
+      "exact": "Exact"
+    },
     "item": {
       "record": "Record",
       "article": "Article",
@@ -1077,6 +1662,7 @@
   "navigation": {
     "chat": "Chat",
     "record": "Record",
+    "quickRecord": "Quick Record",
     "write": "Write",
     "search": "Search",
     "githubImageHosting": "Github Image Hosting",
@@ -1084,7 +1670,16 @@
     "loading": "Loading",
     "view": "View",
     "logout": "Logout",
-    "setting": "Setting"
+    "setting": "Settings",
+    "files": "Notes",
+    "outline": "Outline",
+    "showLeftSidebar": "Show Left Sidebar",
+    "hideLeftSidebar": "Hide Left Sidebar",
+    "showCenterPanel": "Show Editor",
+    "hideCenterPanel": "Hide Editor",
+    "showRightSidebar": "Show Right Sidebar",
+    "hideRightSidebar": "Hide Right Sidebar",
+    "searchPlaceholder": "Search notes or records..."
   },
   "marks": {
     "types": {
@@ -1109,6 +1704,44 @@
     }
   },
   "article": {
+    "sync": {
+      "syncingRemote": "Pulling remote file...",
+      "syncComplete": "Sync Complete"
+    },
+    "syncConfirm": {
+      "title": "Remote File Update Detected",
+      "description": "File {fileName} has remote updates",
+      "commitInfo": "Latest Commit Info",
+      "commitMessage": "Commit Message",
+      "author": "Author",
+      "changes": "Changes",
+      "confirmMessage": "Are you sure you want to pull the remote version and overwrite the local file? This action cannot be undone.",
+      "cancel": "Cancel",
+      "confirmPull": "Confirm Pull"
+    },
+    "emptyState": {
+      "title": "Start Creating",
+      "subtitle": "Select a file to start editing, or create a new note",
+      "tip": "💡 Tip: You can also select files from the left sidebar",
+      "actions": {
+        "newNote": {
+          "title": "Create Note",
+          "desc": "Create a new Markdown note"
+        },
+        "newRecord": {
+          "title": "Create Record",
+          "desc": "Open text recording feature"
+        },
+        "globalSearch": {
+          "title": "Global Search",
+          "desc": "Quickly find your note content"
+        },
+        "openWorkspace": {
+          "title": "Open Workspace",
+          "desc": "Select or switch workspace directory"
+        }
+      }
+    },
     "file": {
       "toolbar": {
         "accessRepo": "Access Repository",
@@ -1126,6 +1759,8 @@
         "sortAsc": "Sort Ascending",
         "sortDesc": "Sort Descending",
         "sort": "Sort",
+        "hideCloudFiles": "Hide Cloud Files",
+        "showCloudFiles": "Show Cloud Files",
         "processingVectors": "Processing Vector Data",
         "calculateVectors": "Knowledge Base Calculation (Full)",
         "enableVectorDb": "Enable Vector Database",
@@ -1134,6 +1769,12 @@
         "importSuccess": "Import Successful",
         "importSuccessDesc": "Successfully imported {count} files",
         "importError": "Import Failed"
+      },
+      "sync": {
+        "syncingRemote": "Pulling remote file...",
+        "syncComplete": "Sync Complete",
+        "pullingRemote": "Fetching latest content from remote server...",
+        "pullComplete": "Pull Complete"
       },
       "context": {
         "viewDirectory": "View Directory",
@@ -1155,7 +1796,55 @@
         "syncFolderError": "Sync folder error",
         "syncFolderProgress": "Syncing folder...",
         "deleteSyncFileSuccess": "Delete Sync File Success",
-        "deleteSyncFileError": "Delete Sync File Error"
+        "deleteSyncFileError": "Delete Sync File Error",
+        "knowledgeBase": "Knowledge Base",
+        "calculateVectors": "Calculate Vectors",
+        "updateVectors": "Update Vectors",
+        "deleteVectors": "Delete Vectors",
+        "includeInKB": "Include in Knowledge Base",
+        "includeInKBFile": "Include in Knowledge Base",
+        "autoVectorCalc": "Auto Vector Calculation",
+        "vectorCalculated": "Vector Updated",
+        "vectorCalcCompleted": "Vector Calculation Completed",
+        "vectorCalcFailed": "Vector Calculation Failed",
+        "vectorDeleted": "Vector Deleted",
+        "vectorDeleteFailed": "Delete Vector Failed",
+        "batchCalcSuccess": "Successfully calculated vectors for {count} files",
+        "batchCalcPartial": "Calculation completed: {success} succeeded, {failed} failed",
+        "batchCalcFailed": "Batch vector calculation failed",
+        "batchDeleteSuccess": "Successfully deleted vectors for {count} files",
+        "batchDeletePartial": "Deletion completed: {success} succeeded, {failed} failed",
+        "batchDeleteFailed": "Batch vector deletion failed",
+        "noMarkdownFiles": "No Markdown files in folder",
+        "includedInKB": "Included in Knowledge Base",
+        "excludedFromKB": "Excluded from Knowledge Base",
+        "autoCalcEnabled": "Auto vector calculation enabled",
+        "autoCalcDisabled": "Auto vector calculation disabled",
+        "settingFailed": "Setting failed",
+        "confirmDeleteVectors": "Are you sure you want to delete vectors for {count} files?"
+      },
+      "folderView": {
+        "vectorDbNotEnabled": "Vector database not enabled",
+        "indexed": "Indexed",
+        "vectorCount": "Vector Count",
+        "databaseSize": "Database Size",
+        "lastCalculated": "Last Calculated",
+        "never": "Never",
+        "calculating": "Calculating...",
+        "failed": "Failed",
+        "recalculateVectors": "Recalculate Vectors",
+        "skills": "Skills",
+        "skillNotFound": "Skill Not Found",
+        "skillNotFoundDesc": "Cannot find Skill with ID {id}",
+        "loadingSkills": "Loading Skills...",
+        "loadingSkill": "Loading Skill...",
+        "globalSkills": "Global Skills",
+        "workspaceSkills": "Workspace Skills",
+        "instructions": "Instructions",
+        "examples": "Examples",
+        "scripts": "Scripts",
+        "references": "References",
+        "assets": "Assets"
       },
       "error": {
         "fileExists": "File name already exists"
@@ -1209,7 +1898,19 @@
     "editor": {
       "copySuccess": "Copy Success",
       "copySuccessDescription": "Copied to clipboard",
+      "search": {
+        "placeholder": "Find in document",
+        "replacePlaceholder": "Replace with",
+        "caseSensitive": "Case sensitive",
+        "replace": "Replace",
+        "replaceAll": "Replace all",
+        "findPrev": "Previous",
+        "findNext": "Next"
+      },
       "floatbar": {
+        "quote": {
+          "tooltip": "Quote"
+        },
         "readAloud": {
           "start": "Read Aloud",
           "stop": "Stop Reading",
@@ -1217,6 +1918,9 @@
         }
       },
       "toolbar": {
+        "organize": {
+          "tooltip": "Organize Notes"
+        },
         "mark": {
           "title": "Records",
           "tooltip": "Records",
@@ -1259,15 +1963,34 @@
         "error": "Upload failed",
         "needToken": "Upload images need to configure accessToken",
         "uploading": "Uploading image"
+      },
+      "saveDialog": {
+        "title": "Save File",
+        "emptyContent": "Empty Content",
+        "emptyContentDesc": "Please enter content before saving",
+        "success": "Save Successful",
+        "successDesc": "File saved successfully",
+        "error": "Save Failed",
+        "errorDesc": "Failed to save file, please try again"
       }
     },
     "footer": {
-      "wordCount": "Words",
+      "wordCount": "Word Count",
+      "pull": {
+        "pull": "Pull",
+        "checking": "Checking for updates...",
+        "noUpdate": "No remote updates",
+        "clickToPull": "Click to pull remote updates",
+        "pullSuccess": "Pull Successful",
+        "pullFailed": "Pull Failed",
+        "ignored": "Ignored",
+        "ignoreUpdate": "Ignore This Update"
+      },
       "sync": {
-        "sync": "Sync",
-        "synced": "Synced",
-        "syncing": "Syncing",
-        "syncFailed": "Sync Failed",
+        "push": "Push",
+        "pushed": "Pushed",
+        "syncing": "Pushing",
+        "syncFailed": "Push Failed",
         "checkNetworkOrToken": "Please check network connection or token",
         "quickSync": "Quick Sync"
       },
@@ -1283,10 +2006,37 @@
         "quickSync": "Quick Sync"
       },
       "vectorCalc": {
-        "tooltip": "Vector Calculation: Auto-calculate 30s after editing, or click to calculate now",
-        "calculating": "Calculating",
-        "pending": "Pending {progress}%",
-        "synced": "Synced"
+        "tooltip": {
+          "default": "Vector Index Status",
+          "none": "Click to start vector calculation",
+          "indexed": "Indexed",
+          "pending": "Pending update, click to calculate now",
+          "calculating": "Calculating..."
+        },
+        "status": {
+          "calculating": "Calculating"
+        }
+      }
+    }
+  },
+  "mobile": {
+    "chat": {
+      "drawer": {
+        "settings": {
+          "title": "Chat Settings"
+        },
+        "tools": {
+          "title": "Tools",
+          "newChat": "New Chat",
+          "start": "Start"
+        },
+        "attachments": {
+          "title": "Attachments",
+          "gallery": "Gallery",
+          "camera": "Camera",
+          "file": "File",
+          "linkNote": "Link Note"
+        }
       }
     }
   },
@@ -1303,5 +2053,61 @@
     "tools": "tools",
     "connecting": "Connecting",
     "disconnected": "Disconnected"
+  },
+  "recording": {
+    "title": "Voice Recording",
+    "description": "Click the microphone button to start recording, the system will automatically recognize and convert to text",
+    "recording": "Recording",
+    "paused": "Paused",
+    "ready": "Ready",
+    "processing": "Processing...",
+    "cancel": "Cancel",
+    "error": "Error",
+    "success": "Success",
+    "noModelConfigured": "Speech recognition model not configured, please configure in settings first",
+    "startError": "Unable to start recording",
+    "noAudioData": "No audio data recorded",
+    "transcriptionSuccess": "Speech recognition completed",
+    "transcriptionEmpty": "Recognition result is empty",
+    "transcriptionError": "Speech recognition failed",
+    "noContentDetected": "No content detected",
+    "doubleClickToSelectFile": "Double click to select audio file",
+    "mode": {
+      "builtin": "Browser Recognition",
+      "builtinDesc": "Free, real-time recognition",
+      "model": "AI Model Recognition",
+      "modelDesc": "Requires STT model, more accurate"
+    }
+  },
+  "footer": {
+    "wordCount": "Words",
+    "sync": {
+      "sync": "Sync",
+      "synced": "Synced",
+      "syncing": "Syncing",
+      "syncFailed": "Sync Failed",
+      "checkNetworkOrToken": "Please check network connection or token",
+      "quickSync": "Quick Sync"
+    },
+    "history": {
+      "loadingHistory": "Loading history",
+      "historyRecords": "History Records",
+      "noHistory": "No History",
+      "loading": "Loading",
+      "recordsCount": "records",
+      "filterQuickSync": "Filter Quick Syncs",
+      "committedAt": "committed at",
+      "pull": "Pull",
+      "quickSync": "Quick Sync"
+    },
+    "vectorCalc": {
+      "tooltip": "Vector Calculation: Auto-calculate 30s after editing, or click to calculate now",
+      "calculating": "Calculating",
+      "pending": "Pending {progress}%",
+      "synced": "Synced"
+    }
+  },
+  "quickRecord": {
+    "description": "Click to select a recording tool and quickly create records"
   }
 }

@@ -11,7 +11,7 @@ import json from 'highlight.js/lib/languages/json';
 import xml from 'highlight.js/lib/languages/xml';
 import css from 'highlight.js/lib/languages/css';
 import 'highlight.js/styles/github.min.css';
-import './chat.scss';
+import './chat.css';
 
 type ThemeType = 'light' | 'dark' | 'system';
 
@@ -19,7 +19,7 @@ export default function ChatPreview({text}: {text: string, themeReverse?: boolea
   const previewRef = useRef<HTMLDivElement>(null);
   const { theme } = useTheme()
   const [mdTheme, setMdTheme] = useState<ThemeType>('light')
-  const { codeTheme } = useSettingStore()
+  const { codeTheme, contentTextScale } = useSettingStore()
   const [htmlContent, setHtmlContent] = useState<string>('');
 
   const md = useRef<MarkdownIt | null>(null);
@@ -126,6 +126,13 @@ export default function ChatPreview({text}: {text: string, themeReverse?: boolea
     }
   }, [theme])
   
+  // 应用正文文字大小缩放
+  useEffect(() => {
+    if (previewRef.current) {
+      previewRef.current.style.fontSize = `${contentTextScale + 15}%`
+    }
+  }, [contentTextScale])
+
   // 根据主题选择样式
   const getThemeClass = () => {
     if (mdTheme === 'dark') {
@@ -139,6 +146,59 @@ export default function ChatPreview({text}: {text: string, themeReverse?: boolea
     return codeTheme || 'github';
   };
 
+  // 检测是否为 macOS
+  const isMacOS = () => {
+    if (typeof window === 'undefined') return false;
+    return /Mac|iPhone|iPad|iPod/.test(navigator.userAgent);
+  };
+
+  // 处理文本选中后的拖拽（仅 macOS）
+  const handleDragStart = (e: React.DragEvent) => {
+    // 非 macOS 系统直接阻止拖拽
+    if (!isMacOS()) {
+      e.preventDefault();
+      return;
+    }
+
+    const selection = window.getSelection()
+    const selectedText = selection?.toString().trim()
+
+    if (selectedText) {
+      // 设置拖拽数据为选中的文本
+      e.dataTransfer.setData('text/plain', selectedText)
+      e.dataTransfer.effectAllowed = 'copy'
+
+      // 创建自定义拖拽预览图像，只显示选中的文本
+      const dragPreview = document.createElement('div')
+      dragPreview.style.position = 'absolute'
+      dragPreview.style.left = '-9999px'
+      dragPreview.style.padding = '8px 12px'
+      dragPreview.style.backgroundColor = 'rgba(0, 0, 0, 0.8)'
+      dragPreview.style.color = 'white'
+      dragPreview.style.borderRadius = '4px'
+      dragPreview.style.fontSize = '14px'
+      dragPreview.style.maxWidth = '300px'
+      dragPreview.style.wordWrap = 'break-word'
+      dragPreview.textContent = selectedText.length > 50 ? selectedText.substring(0, 50) + '...' : selectedText
+
+      document.body.appendChild(dragPreview)
+      e.dataTransfer.setDragImage(dragPreview, 0, 0)
+
+      // 拖拽结束后移除预览元素
+      setTimeout(() => {
+        document.body.removeChild(dragPreview)
+      }, 0)
+    } else {
+      // 如果没有选中文本，阻止拖拽
+      e.preventDefault()
+    }
+  }
+
+  // 没有内容时不渲染
+  if (!text || !text.trim()) {
+    return null
+  }
+
   return (
     <div className="flex-1 max-w-[calc(100vw-30px)] md:max-w-[calc(100vw-440px)]">
       <div 
@@ -146,6 +206,8 @@ export default function ChatPreview({text}: {text: string, themeReverse?: boolea
         className={getThemeClass()}
         dangerouslySetInnerHTML={{ __html: htmlContent }}
         data-highlight-style={getHighlightStyle()}
+        draggable={isMacOS()}
+        onDragStart={handleDragStart}
       />
     </div>
   );

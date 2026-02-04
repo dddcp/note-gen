@@ -9,7 +9,7 @@ import {
   DialogContent,
   DialogTrigger,
 } from "@/components/ui/dialog"
-import { useEffect, useState } from "react"
+import { useEffect, useState, useCallback } from "react"
 import {
   Carousel,
   CarouselContent,
@@ -29,18 +29,22 @@ import useMarkStore from "@/stores/mark"
 import { v4 as uuid } from "uuid"
 import useSettingStore from "@/stores/setting"
 import ocr from "@/lib/ocr"
-import { fetchAiDesc, fetchAiDescByImage } from "@/lib/ai"
+import { fetchAiDesc, fetchAiDescByImage } from "@/lib/ai/description"
 import { insertMark } from "@/db/marks"
+import emitter from '@/lib/emitter'
+import { useRouter } from 'next/navigation'
+import { handleRecordComplete } from '@/lib/record-navigation'
 
 export function ControlScan() {
   const t = useTranslations();
+  const router = useRouter();
   const [open, setOpen] = useState(false)
   const [image, setImage] = useState<HTMLImageElement>();
   const [files, setFiles] = useState<ScreenshotImage[]>([])
   const cropperRef = useRef<Cropper | null>(null);
   const { currentTagId, fetchTags, getCurrentTag } = useTagStore()
   const { fetchMarks, addQueue, removeQueue, setQueue } = useMarkStore()
-  const { primaryModel, primaryImageMethod } = useSettingStore()
+  const { primaryModel, primaryImageMethod, enableImageRecognition } = useSettingStore()
 
   function initCropper() {
     if (cropperRef.current) {
@@ -95,15 +99,25 @@ export function ControlScan() {
       await writeFile(`screenshot/${queueId}.png`, uint8Array, {
         baseDir: BaseDirectory.AppData
       })
+      
+      // 记录完成后的导航处理（桌面端切换tab，移动端跳转页面）
+      handleRecordComplete(router)
+      
       let content = ''
       let desc = ''
-      if (primaryImageMethod === 'vlm') {
-        addQueue({ queueId, progress: t('record.mark.progress.aiAnalysis'), type: 'scan', startTime: Date.now() })
+      
+      // Skip image recognition if disabled
+      if (!enableImageRecognition) {
+        addQueue({ queueId, tagId: currentTagId!, progress: t('record.mark.progress.save'), type: 'scan', startTime: Date.now() })
+        content = ''
+        desc = ''
+      } else if (primaryImageMethod === 'vlm') {
+        addQueue({ queueId, tagId: currentTagId!, progress: t('record.mark.progress.aiAnalysis'), type: 'scan', startTime: Date.now() })
         const base64 = `data:image/png;base64,${Buffer.from(uint8Array).toString('base64')}`
         content = await fetchAiDescByImage(base64) || 'VLM Error'
         desc = content
       } else {
-        addQueue({ queueId, progress: t('record.mark.progress.ocr'), type: 'scan', startTime: Date.now() })
+        addQueue({ queueId, tagId: currentTagId!, progress: t('record.mark.progress.ocr'), type: 'scan', startTime: Date.now() })
         content = await ocr(`screenshot/${queueId}.png`) || 'OCR Error'
         if (primaryModel) {
           setQueue(queueId, { progress: t('record.mark.progress.aiAnalysis') });
@@ -126,6 +140,18 @@ export function ControlScan() {
       initCropper()
     }
   }, [image, open])
+
+  const handleScan = useCallback(() => {
+    createScreenShot()
+    setOpen(true)
+  }, [])
+
+  useEffect(() => {
+    emitter.on('toolbar-shortcut-scan', handleScan)
+    return () => {
+      emitter.off('toolbar-shortcut-scan', handleScan)
+    }
+  }, [handleScan])
 
   return (
     <div className="hidden md:block">

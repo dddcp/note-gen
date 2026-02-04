@@ -5,7 +5,6 @@ import { usePathname, useRouter } from "next/navigation";
 import baseConfig from '../config'
 import { useTranslations } from 'next-intl'
 import useSettingStore from "@/stores/setting"
-import UploadStore from "./upload-store";
 import { Separator } from "@/components/ui/separator";
 
 export function SettingTab() {
@@ -42,7 +41,7 @@ export function SettingTab() {
   }, [pathname, setLastSettingPage])
 
   return (
-    <div className="flex flex-col w-56 justify-between h-screen bg-sidebar border-r">
+    <div className="flex flex-col w-56 justify-between h-full bg-sidebar border-r">
       <ul className="w-full p-4 flex flex-col justify-between flex-1 overflow-y-auto">
         {
           config.map((item, index) => {
@@ -52,17 +51,24 @@ export function SettingTab() {
             return (
               <li
                 key={item.anchor}
-                className={currentPage === item.anchor ? '!bg-zinc-800 text-white setting-anchor' : 'setting-anchor'}
+                className={`
+                  w-full px-4 py-2.5 rounded-md cursor-pointer flex items-center gap-3 text-sm transition-colors
+                  ${currentPage === item.anchor
+                    ? 'bg-primary text-primary-foreground'
+                    : 'hover:bg-accent hover:text-accent-foreground text-foreground/80'
+                  }
+                `}
                 onClick={() => handleNavigation(item.anchor)}
               >
-                {item.icon}
-                <span>{item.title}</span>
+                <span className="size-4 shrink-0 flex items-center justify-center">
+                  {item.icon}
+                </span>
+                <span className="truncate">{item.title}</span>
               </li>
             )
           })
         }
       </ul>
-      <UploadStore />
     </div>
   )
 }

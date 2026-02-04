@@ -1,4 +1,5 @@
 use tauri::{Manager, WindowEvent, AppHandle};
+use crate::tray::is_tray_enabled;
 
 pub fn setup_window_events(app: &AppHandle) -> tauri::Result<()> {
     if let Some(window) = app.get_webview_window("main") {
@@ -11,14 +12,16 @@ pub fn setup_window_events(app: &AppHandle) -> tauri::Result<()> {
     Ok(())
 }
 
+#[cfg(target_os = "macos")]
 fn handle_window_event(event: &WindowEvent, window: &tauri::WebviewWindow, app_handle: &AppHandle) {
     match event {
         WindowEvent::CloseRequested { api, .. } => {
-            // 阻止默认关闭行为
-            api.prevent_close();
+            let tray_enabled = is_tray_enabled(app_handle);
             
-            #[cfg(target_os = "macos")]
-            {
+            if tray_enabled {
+                // 启用托盘时：最小化到托盘
+                api.prevent_close();
+                
                 // 检查是否处于全屏状态，如果是则先退出全屏
                 if let Ok(is_fullscreen) = window.is_fullscreen() {
                     if is_fullscreen {
@@ -27,12 +30,33 @@ fn handle_window_event(event: &WindowEvent, window: &tauri::WebviewWindow, app_h
                         std::thread::sleep(std::time::Duration::from_millis(300));
                     }
                 }
+                
+                // 隐藏窗口到托盘
+                let _ = window.hide();
+                let _ = app_handle.hide();
+            } else {
+                // 禁用托盘时：直接退出应用
+                std::process::exit(0);
             }
+        }
+        _ => {}
+    }
+}
+
+#[cfg(not(target_os = "macos"))]
+fn handle_window_event(event: &WindowEvent, window: &tauri::WebviewWindow, app_handle: &AppHandle) {
+    match event {
+        WindowEvent::CloseRequested { api, .. } => {
+            let tray_enabled = is_tray_enabled(app_handle);
             
-            // 隐藏窗口到托盘
-            let _ = window.hide();
-            #[cfg(target_os = "macos")]
-            let _ = app_handle.hide();
+            if tray_enabled {
+                // 启用托盘时：最小化到托盘
+                api.prevent_close();
+                let _ = window.hide();
+            } else {
+                // 禁用托盘时：直接退出应用
+                std::process::exit(0);
+            }
         }
         _ => {}
     }

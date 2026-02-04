@@ -1,52 +1,76 @@
 import { Button } from "@/components/ui/button";
-import { SettingRow } from "../components/setting-base";
-import { HardDriveDownload, HardDriveUpload } from "lucide-react";
+import { Item, ItemMedia, ItemContent, ItemTitle, ItemDescription, ItemActions } from '@/components/ui/item';
+import { FileJson } from "lucide-react";
 import { open, save } from "@tauri-apps/plugin-dialog";
 import { useToast } from "@/hooks/use-toast";
-import { BaseDirectory, copyFile, readTextFile } from "@tauri-apps/plugin-fs";
+import { BaseDirectory, copyFile, readTextFile, writeTextFile } from "@tauri-apps/plugin-fs";
 import { Store } from "@tauri-apps/plugin-store";
 import { isMobileDevice } from "@/lib/check";
 import { relaunch } from "@tauri-apps/plugin-process";
+import { useTranslations } from 'next-intl';
 
 export default function SetConfig() {
+    const t = useTranslations('settings.dev');
     const { toast } = useToast()
     async function handleImport() {
-      const file = await open({
-        title: '导入配置文件',
-      })
-      if (file) {
-        const content = await readTextFile(file, { baseDir: BaseDirectory.AppData })
-        const jsonContent = JSON.parse(content)
-        const store = await Store.load('store.json');
-        Object.keys(jsonContent).forEach((key: string) => {
-          store.set(key, jsonContent[key])
+      try {
+        const file = await open({
+          title: t('importConfigTitle'),
         })
-        if (isMobileDevice()) {
-          toast({
-            description: '配置下载成功，请手动重启应用',
-          })
-        } else {
-          relaunch()
+        if (file) {
+          // 验证 JSON 格式
+          const content = await readTextFile(file)
+          JSON.parse(content)
+
+          // 直接将文件写入 store.json 位置
+          await writeTextFile('store.json', content, { baseDir: BaseDirectory.AppData })
+
+          // 关闭已加载的 store 实例（如果有）
+          const existingStore = await Store.get('store.json')
+          if (existingStore) {
+            await existingStore.close()
+          }
+
+          // 重新加载 store，会自动从磁盘读取新写入的文件
+          await Store.load('store.json')
+
+          if (isMobileDevice()) {
+            toast({
+              description: t('importConfigSuccessMobile'),
+            })
+          } else {
+            relaunch()
+          }
         }
+      } catch (error) {
+        toast({
+          title: '导入失败',
+          description: error instanceof Error ? error.message : String(error),
+          variant: 'destructive'
+        })
       }
     }
     async function handleExport() {
       const file = await save({
-        title: '导出配置文件',
+        title: t('exportConfigTitle'),
         defaultPath: 'store.json',
       })
       if (file) {
         await copyFile('store.json', file, { fromPathBaseDir: BaseDirectory.AppData })
-        toast({ title: '导出成功' })
+        toast({ title: t('exportConfigSuccess') })
       }
     }
     return (
-    <SettingRow border className="gap-4 flex-col md:flex-row items-start md:items-center">
-      <span>配置文件导入与导出，导入配置文件将覆盖当前配置，并且重启后生效。</span>
-      <div className="flex gap-2">
-        <Button onClick={handleImport}><HardDriveDownload />导入</Button>
-        <Button onClick={handleExport}><HardDriveUpload />导出</Button>
-      </div>
-    </SettingRow>
+    <Item variant="outline">
+      <ItemMedia variant="icon"><FileJson className="size-4" /></ItemMedia>
+      <ItemContent>
+        <ItemTitle>{t('configFileTitle')}</ItemTitle>
+        <ItemDescription>{t('configFileDesc')}</ItemDescription>
+      </ItemContent>
+      <ItemActions>
+        <Button variant="outline" onClick={handleImport}>{t('importButton')}</Button>
+        <Button variant="outline" onClick={handleExport}>{t('exportButton')}</Button>
+      </ItemActions>
+    </Item>
   )
 }

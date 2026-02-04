@@ -1,15 +1,18 @@
-import { ContextMenuItem } from "@/components/ui/context-menu";
+import { ContextMenuItem, ContextMenuShortcut } from "@/components/ui/enhanced-context-menu";
 import { DirTree } from "@/stores/article";
 import { useTranslations } from "next-intl";
 import { computedParentPath } from "@/lib/path";
 import useClipboardStore from "@/stores/clipboard";
 import { toast } from "@/hooks/use-toast";
+import { Folder } from "lucide-react"
+import { Kbd } from "@/components/ui/kbd"
 
 interface CutFolderProps {
   item: DirTree;
+  shortcut?: string;
 }
 
-export function CutFolder({ item }: CutFolderProps) {
+export function CutFolder({ item, shortcut }: CutFolderProps) {
   const t = useTranslations('article.file');
   const { setClipboardItem } = useClipboardStore();
   const path = computedParentPath(item);
@@ -25,12 +28,19 @@ export function CutFolder({ item }: CutFolderProps) {
   }
 
   return (
-    <ContextMenuItem 
-      inset 
-      disabled={!item.isLocale} 
+    <ContextMenuItem
+      inset
+      disabled={!item.isLocale}
       onClick={handleCutFolder}
+      menuType="file"
     >
+      <Folder className="mr-2 h-4 w-4" />
       {t('context.cut')}
+      {shortcut && (
+        <ContextMenuShortcut menuType="file">
+          <Kbd>{shortcut}</Kbd>
+        </ContextMenuShortcut>
+      )}
     </ContextMenuItem>
   );
 }

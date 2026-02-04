@@ -33,7 +33,7 @@ interface GroupedModel {
 
 export function ModelSelect({modelKey}: {modelKey: string}) {
   const [groupedModels, setGroupedModels] = useState<GroupedModel[]>([])
-  const { setPlaceholderModel, setTranslateModel, setMarkDescModel, setPrimaryModel, setImageMethodModel, setAudioModel, setEmbeddingModel, setRerankingModel } = useSettingStore()
+  const { setCompletionModel, setMarkDescModel, setPrimaryModel, setImageMethodModel, setAudioModel, setSttModel, setEmbeddingModel, setRerankingModel, setCondenseModel, setInspirationModel } = useSettingStore()
   const [model, setModel] = useState<string>('')
   const [open, setOpen] = React.useState(false)
   const t = useTranslations('settings.defaultModel')
@@ -45,18 +45,23 @@ export function ModelSelect({modelKey}: {modelKey: string}) {
         return 'primaryModel'
       case 'imageMethod':
         return 'imageMethodModel'
-      case 'placeholder':
-        return 'placeholderModel'
-      case 'translate':
-        return 'translateModel'
+      case 'completion':
+        return 'completionModel'
       case 'markDesc':
         return 'markDescModel'
       case 'audio':
+      case 'tts':
         return 'audioModel'
+      case 'stt':
+        return 'sttModel'
       case 'embedding':
         return 'embeddingModel'
       case 'reranking':
         return 'rerankingModel'
+      case 'condense':
+        return 'condenseModel'
+      case 'inspiration':
+        return 'inspirationModel'
       default:
         return `${modelKey}Model`
     }
@@ -71,23 +76,30 @@ export function ModelSelect({modelKey}: {modelKey: string}) {
       case 'imageMethod':
         setImageMethodModel(primaryModel)
         break;
-      case 'placeholder':
-        setPlaceholderModel(primaryModel)
-        break;
-      case 'translate':
-        setTranslateModel(primaryModel)
+      case 'completion':
+        setCompletionModel(primaryModel)
         break;
       case 'markDesc':
         setMarkDescModel(primaryModel)
         break;
       case 'audio':
+      case 'tts':
         setAudioModel(primaryModel)
+        break;
+      case 'stt':
+        setSttModel(primaryModel)
         break;
       case 'embedding':
         setEmbeddingModel(primaryModel)
         break;
       case 'reranking':
         setRerankingModel(primaryModel)
+        break;
+      case 'condense':
+        setCondenseModel(primaryModel)
+        break;
+      case 'inspiration':
+        setInspirationModel(primaryModel)
         break;
       default:
         break;
@@ -102,7 +114,10 @@ export function ModelSelect({modelKey}: {modelKey: string}) {
       case 'reranking':
         return 'rerank'
       case 'audio':
-        return 'audio'
+      case 'tts':
+        return 'tts'
+      case 'stt':
+        return 'stt'
       default:
         return 'chat'
     }
@@ -242,7 +257,7 @@ export function ModelSelect({modelKey}: {modelKey: string}) {
               variant="outline"
               role="combobox"
               aria-expanded={open}
-              className="w-full md:w-[280px] justify-between"
+              className="w-[280px] justify-between"
             >
               {model
                 ? findSelectedModelDisplay()

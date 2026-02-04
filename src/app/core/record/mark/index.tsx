@@ -1,13 +1,8 @@
 'use client'
 
-import {
-  Sidebar,
-  SidebarHeader,
-} from "@/components/ui/sidebar"
 import { useTranslations } from 'next-intl'
 import React from "react"
-import { TagManage } from '../tag'
-import { MarkHeader } from './mark-header'
+import { TagManage } from './tag-manage'
 import { MarkList } from './mark-list'
 import { MarkToolbar } from './mark-toolbar'
 import useMarkStore from "@/stores/mark"
@@ -31,23 +26,26 @@ export function NoteSidebar() {
   }
 
   return (
-    <Sidebar collapsible="none" className="border-r w-full hidden md:flex md:w-[300px] flex-col">
-      <SidebarHeader className="p-0">
-        <MarkHeader />
-        {
-          trashState ? 
-          <div className="flex pl-2 relative border-b pb-2 h-6 items-center justify-between overflow-hidden">
+    <div id="record-sidebar" className="w-full h-full hidden md:flex flex-col">
+      {trashState ? (
+        <>
+          <div className="flex p-2 border-b items-center justify-between">
             <p className="text-xs text-zinc-500">{t('record.trash.records', { count: marks.length })}</p>
-            {
-              marks.length > 0 ?
-              <Button className="text-xs text-red-900" variant="link" onClick={handleClearTrash}>{t('record.trash.empty')}</Button> : null
-            }
-          </div>:
+            {marks.length > 0 && (
+              <Button variant="ghost" size="sm" onClick={handleClearTrash}>
+                {t('record.trash.empty')}
+              </Button>
+            )}
+          </div>
+          <MarkList />
+        </>
+      ) : (
+        <div className="flex-1 overflow-y-auto">
           <TagManage />
-        }
-      </SidebarHeader>
-      <MarkList />
+        </div>
+      )}
+      
       <MarkToolbar />
-    </Sidebar>
+    </div>
   )
 }

@@ -1,72 +1,24 @@
 "use client"
-
+import * as React from "react"
 import { MessageSquarePlus } from "lucide-react"
 import { TooltipButton } from "@/components/tooltip-button"
-import useTagStore from "@/stores/tag"
-import { insertTag } from "@/db/tags"
-import useMarkStore from "@/stores/mark"
-import { useTranslations } from "next-intl"
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog"
-import { useState } from "react"
-import { Input } from "@/components/ui/input"
+import useChatStore from "@/stores/chat"
+import { useTranslations } from 'next-intl'
 
 export function NewChat() {
-  const t = useTranslations('record.chat')
-  const ct = useTranslations('common')
-  const [name, setName] = useState('Untitled Chat')
-  const {
-    setCurrentTagId,
-    getCurrentTag,
-    fetchTags
-  } = useTagStore()
+  const { startNewConversation, chats } = useChatStore()
+  const t = useTranslations()
 
-  const { fetchMarks } = useMarkStore()
-  const [open, setOpen] = useState(false)
-
-  async function confirmCreateNewChat() {
-    const res = await insertTag({ name })
-    await setCurrentTagId(res.lastInsertId as number)
-    await fetchTags()
-    getCurrentTag()
-    fetchMarks()
-    setOpen(false)
-    setName('Untitled Chat')
+  function newChatHandler() {
+    startNewConversation()
   }
 
+  // 当前会话没有消息时禁用新对话按钮
+  const isDisabled = chats.length === 0
+
   return (
-    <>
-      <TooltipButton icon={<MessageSquarePlus />} tooltipText={t('newChat')} onClick={() => setOpen(true)} />
-      <AlertDialog open={open} onOpenChange={setOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>{t('confirmNew')}</AlertDialogTitle>
-            <AlertDialogDescription>
-              {t('confirmNewDescription')}
-            </AlertDialogDescription>
-            {/* 输入框 */}
-            <div>
-              <Input
-                placeholder="Tag Name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-              />
-            </div>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel>{ct('cancel')}</AlertDialogCancel>
-            <AlertDialogAction onClick={confirmCreateNewChat}>{ct('confirm')}</AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
-    </>
+    <div>
+      <TooltipButton icon={<MessageSquarePlus />} tooltipText={t('record.chat.input.newChat')} side="bottom" onClick={newChatHandler} disabled={isDisabled}/>
+    </div>
   )
 }

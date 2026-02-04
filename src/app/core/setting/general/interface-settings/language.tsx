@@ -1,7 +1,7 @@
 'use client'
 
 import { useTranslations } from 'next-intl'
-import { SettingPanel } from '../../components/setting-base'
+import { Item, ItemMedia, ItemContent, ItemTitle, ItemDescription, ItemActions } from '@/components/ui/item'
 import { Languages } from 'lucide-react'
 import { useI18n } from "@/hooks/useI18n"
 import {
@@ -22,45 +22,62 @@ export function LanguageSettings() {
         return "English"
       case "zh":
         return "中文"
+      case "zh-TW":
+        return "繁體中文"
+      case "pt-BR":
+        return "Português"
       case "ja":
         return "日本語"
       default:
-        return "English"
+        return "中文"
     }
   }
 
   return (
-    <SettingPanel
-      title={t('language.title')}
-      desc={t('language.desc')}
-      icon={<Languages className="h-4 w-4" />}
-    >
-      <Select value={currentLocale} onValueChange={changeLanguage}>
-        <SelectTrigger className="w-[180px]">
-          <SelectValue>
-            <div className="flex items-center gap-2">
-              <span>{getLanguageDisplay(currentLocale)}</span>
-            </div>
-          </SelectValue>
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem value="en">
-            <div className="flex items-center gap-2">
-              <span>English</span>
-            </div>
-          </SelectItem>
-          <SelectItem value="zh">
-            <div className="flex items-center gap-2">
-              <span>中文</span>
-            </div>
-          </SelectItem>
-          <SelectItem value="ja">
-            <div className="flex items-center gap-2">
-              <span>日本語</span>
-            </div>
-          </SelectItem>
-        </SelectContent>
-      </Select>
-    </SettingPanel>
+    <Item variant="outline">
+      <ItemMedia variant="icon"><Languages className="h-4 w-4" /></ItemMedia>
+      <ItemContent>
+        <ItemTitle>{t('language.title')}</ItemTitle>
+        <ItemDescription>{t('language.desc')}</ItemDescription>
+      </ItemContent>
+      <ItemActions>
+        <Select value={currentLocale} onValueChange={changeLanguage}>
+          <SelectTrigger className="w-[180px]">
+            <SelectValue>
+              <div className="flex items-center gap-2">
+                <span>{getLanguageDisplay(currentLocale)}</span>
+              </div>
+            </SelectValue>
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="zh">
+              <div className="flex items-center gap-2">
+                <span>中文</span>
+              </div>
+            </SelectItem>
+            <SelectItem value="zh-TW">
+              <div className="flex items-center gap-2">
+                <span>繁體中文</span>
+              </div>
+            </SelectItem>
+            <SelectItem value="en">
+              <div className="flex items-center gap-2">
+                <span>English</span>
+              </div>
+            </SelectItem>
+            <SelectItem value="ja">
+              <div className="flex items-center gap-2">
+                <span>日本語</span>
+              </div>
+            </SelectItem>
+            <SelectItem value="pt-BR">
+              <div className="flex items-center gap-2">
+                <span>Português</span>
+              </div>
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      </ItemActions>
+    </Item>
   )
 }

@@ -1,13 +1,14 @@
-import { GitPullRequestArrow, HistoryIcon, LoaderCircle } from "lucide-react";
+import { GitPullRequestArrow, History as HistoryIcon, LoaderCircle } from "lucide-react";
 import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
-import { decodeBase64ToString, getFileCommits as getGithubFileCommits, getFiles as getGithubFiles } from "@/lib/github";
-import { getFileCommits as getGiteeFileCommits, getFiles as getGiteeFiles } from "@/lib/gitee";
-import { getFileCommits as getGitlabFileCommits, getFileContent } from "@/lib/gitlab";
+import { decodeBase64ToString, getFileCommits as getGithubFileCommits, getFiles as getGithubFiles } from "@/lib/sync/github";
+import { getFileCommits as getGiteeFileCommits, getFiles as getGiteeFiles } from "@/lib/sync/gitee";
+import { getFileCommits as getGitlabFileCommits, getFileContent } from "@/lib/sync/gitlab";
+import { getFileCommits as getGiteaFileCommits, getFileContent as getGiteaFileContent } from "@/lib/sync/gitea";
 import { useTranslations } from "next-intl";
 import useArticleStore from "@/stores/article";
-import { ResCommit } from "@/lib/github.types";
-import { getSyncRepoName } from "@/lib/repo-utils";
+import { ResCommit } from "@/lib/sync/github.types";
+import { getSyncRepoName } from "@/lib/sync/repo-utils";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle, SheetTrigger } from "@/components/ui/sheet";
@@ -23,7 +24,7 @@ import { Store } from "@tauri-apps/plugin-store";
 
 dayjs.extend(relativeTime)
 
-export default function History({editor}: {editor?: Vditor}) {
+export default function HistoryComponent({editor, disabled}: {editor?: Vditor, disabled?: boolean}) {
   const [sheetOpen, setSheetOpen] = useState(false);
   const { activeFilePath, setCurrentArticle, currentArticle, loadFileTree, saveCurrentArticle } = useArticleStore()
   const [commits, setCommits] = useState<ResCommit[]>([])
@@ -56,7 +57,7 @@ export default function History({editor}: {editor?: Vditor}) {
     } else if (backupMethod === 'gitlab') {
       const gitlabRepo = await getSyncRepoName('gitlab');
       const gitlabRes = await getGitlabFileCommits({ path: activeFilePath, repo: gitlabRepo });
-      if (gitlabRes?.data) {
+      if (gitlabRes && gitlabRes.data) {
         // 转换 Gitlab 提交格式为通用格式
         res = gitlabRes.data.map(commit => ({
           sha: commit.id,
@@ -81,10 +82,52 @@ export default function History({editor}: {editor?: Vditor}) {
           }
         }));
       }
+    } else if (backupMethod === 'gitea') {
+      const giteaRepo = await getSyncRepoName('gitea');
+      const giteaRes = await getGiteaFileCommits({ path: activeFilePath, repo: giteaRepo });
+      if (giteaRes && giteaRes.data) {
+        // 转换 Gitea 提交格式为通用格式
+        res = giteaRes.data.map(commit => ({
+          sha: commit.sha,
+          commit: {
+            message: commit.commit.message,
+            author: {
+              name: commit.commit.author.name,
+              email: commit.commit.author.email,
+              date: commit.commit.author.date
+            },
+            committer: {
+              name: commit.commit.committer.name,
+              email: commit.commit.committer.email,
+              date: commit.commit.committer.date
+            }
+          },
+          html_url: commit.html_url,
+          author: {
+            login: commit.author?.login || commit.commit.author.name,
+            avatar_url: commit.author?.avatar_url || '',
+            html_url: commit.html_url
+          }
+        }));
+      }
     }
 
     setCommits(res || [])
     setCommitsLoading(false)
+    
+    // 通知 Pull 组件最新的 commit 信息
+    if (res && res.length > 0) {
+      const latestCommit = res[0]
+      const commitInfo = {
+        sha: latestCommit.sha,
+        message: latestCommit.commit?.message || 'No message',
+        author: latestCommit.commit?.author?.name || latestCommit.author?.login || 'Unknown',
+        date: new Date(latestCommit.commit?.author?.date || latestCommit.commit?.committer?.date || Date.now()),
+        additions: latestCommit.stats?.additions,
+        deletions: latestCommit.stats?.deletions
+      }
+      emitter.emit('latest-commit-info', commitInfo)
+    }
   }
 
   async function handleCommit(sha: string) {
@@ -98,15 +141,17 @@ export default function History({editor}: {editor?: Vditor}) {
     const backupMethod = await store.get<string>('primaryBackupMethod') || 'github';
     
     let res;
+    let contentLoaded = false;
     switch (backupMethod) {
       case 'github':
         try {
           const githubRepo2 = await getSyncRepoName('github');
-          res = await getGithubFiles({path: `${activeFilePath}?ref=${sha}`, repo: githubRepo2});
+          res = await getGithubFiles({path: activeFilePath, repo: githubRepo2, ref: sha});
           if (res && res.content) {
             const content = decodeBase64ToString(res.content)
             setCurrentArticle(content);
             await saveCurrentArticle(content)
+            contentLoaded = true;
           } else {
             setCurrentArticle(cacheArticle);
           }
@@ -123,6 +168,7 @@ export default function History({editor}: {editor?: Vditor}) {
             const content = decodeBase64ToString(res.content)
             setCurrentArticle(content);
             await saveCurrentArticle(content)
+            contentLoaded = true;
           } else {
             setCurrentArticle(cacheArticle);
           }
@@ -140,6 +186,7 @@ export default function History({editor}: {editor?: Vditor}) {
             const content = decodeBase64ToString(fileContent.content)
             setCurrentArticle(content);
             await saveCurrentArticle(content)
+            contentLoaded = true;
           } else {
             setCurrentArticle(cacheArticle);
           }
@@ -148,8 +195,53 @@ export default function History({editor}: {editor?: Vditor}) {
           setCurrentArticle(cacheArticle);
         }
         break;
+      case 'gitea':
+        try {
+          // 使用 getFileContent 方法获取特定 commit 的文件内容
+          const giteaRepo2 = await getSyncRepoName('gitea');
+          const giteaFileContent = await getGiteaFileContent({path: activeFilePath, ref: sha, repo: giteaRepo2});
+          if (giteaFileContent && giteaFileContent.content) {
+            const content = decodeBase64ToString(giteaFileContent.content)
+            setCurrentArticle(content);
+            await saveCurrentArticle(content)
+            contentLoaded = true;
+          } else {
+            setCurrentArticle(cacheArticle);
+          }
+        } catch (error) {
+          console.error('Gitea 获取文件历史内容失败:', error);
+          setCurrentArticle(cacheArticle);
+        }
+        break;
       default:
         break;
+    }
+    
+    // 如果成功加载了历史内容，将编辑器滚动到顶部
+    if (contentLoaded && editor) {
+      setTimeout(() => {
+        try {
+          const vditor = editor as any;
+          if (vditor.vditor) {
+            // 根据不同的编辑模式获取对应的编辑器元素
+            let editorElement: HTMLElement | null = null;
+            if (vditor.vditor.ir?.element) {
+              editorElement = vditor.vditor.ir.element;
+            } else if (vditor.vditor.wysiwyg?.element) {
+              editorElement = vditor.vditor.wysiwyg.element;
+            } else if (vditor.vditor.sv?.element) {
+              editorElement = vditor.vditor.sv.element;
+            }
+            
+            // 滚动到顶部
+            if (editorElement) {
+              editorElement.scrollTop = 0;
+            }
+          }
+        } catch (error) {
+          console.error('滚动编辑器到顶部失败:', error);
+        }
+      }, 100);
     }
     
     setCommitsLoading(false);
@@ -162,6 +254,8 @@ export default function History({editor}: {editor?: Vditor}) {
   useEffect(() => {
     if (activeFilePath) {
       fetchCommits()
+    } else {
+      setCommits([])
     }
     emitter.on('sync-success', async () => {
       await loadFileTree()
@@ -180,14 +274,16 @@ export default function History({editor}: {editor?: Vditor}) {
             <Button 
               variant="ghost" 
               size="sm" 
-              disabled={commitsLoading} 
+              disabled={commitsLoading || disabled} 
               className="outline-none">
               {
-                commitsLoading && <LoaderCircle className="animate-spin !size-3" />
+                commitsLoading ? 
+                  <LoaderCircle className="animate-spin !size-3" /> :
+                  <HistoryIcon className="!size-3" />
               }
               <span className="text-xs">
                 {commitsLoading ? t('loadingHistory') : commits.length ? 
-                  `${t('historyRecords')} (${dayjs(commits[0].commit.committer.date).fromNow()})` : t('noHistory')}
+                  `${t('historyRecords')} (${commits.length})` : t('noHistory')}
               </span>
             </Button> :
             null
