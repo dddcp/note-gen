@@ -1,24 +1,24 @@
 'use client'
 
-import { MdEditor } from '@/app/core/article/md-editor'
+import { MobileEditor } from './mobile-editor'
 import { WritingHeader } from './custom-header'
 import useArticleStore from '@/stores/article'
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
+import type { Editor } from '@tiptap/react'
 
 export default function Writing() {
   const { initCollapsibleList } = useArticleStore()
+  const [editor, setEditor] = useState<Editor | null>(null)
 
   useEffect(() => {
-    // 初始化并恢复上次打开的文章
     initCollapsibleList()
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [])
+  }, [initCollapsibleList])
 
   return (
-    <div id="mobile-writing" className='w-full flex flex-col flex-1'>
-      <WritingHeader />
+    <div id="mobile-writing" className='w-full h-full flex flex-col'>
+      <WritingHeader editor={editor} />
       <div className='flex-1 overflow-hidden'>
-        <MdEditor />
+        <MobileEditor onEditorReady={setEditor} />
       </div>
     </div>
   )

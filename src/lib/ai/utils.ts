@@ -1,8 +1,9 @@
 import { toast } from "@/hooks/use-toast";
 import { Store } from "@tauri-apps/plugin-store";
-import OpenAI from 'openai';
+import type OpenAI from 'openai';
 import { AiConfig } from "@/app/core/setting/config";
 import { readFile } from "@tauri-apps/plugin-fs";
+import { createTauriOpenAIClient, type OpenAICompatibleClient } from "./tauri-client";
 
 /**
  * 获取当前的prompt内容
@@ -166,12 +167,10 @@ export function handleAIError(error: any, showToast = true): string | null {
 /**
  * 为不同AI类型准备消息
  * @param text 用户输入文本（如果提供了 baseMessages，此参数将作为最后一条用户消息）
- * @param includeLanguage 是否包含语言设置
  * @param baseMessages 基础消息数组（如对话历史），如果提供，将合并到返回结果中
  */
 export async function prepareMessages(
   text: string,
-  includeLanguage = false,
   baseMessages?: OpenAI.Chat.ChatCompletionMessageParam[]
 ): Promise<{
   messages: OpenAI.Chat.ChatCompletionMessageParam[],
@@ -180,10 +179,29 @@ export async function prepareMessages(
   // 获取prompt内容
   let promptContent = await getPromptContent()
 
-  if (includeLanguage) {
-    const store = await Store.load('store.json')
-    const chatLanguage = await store.get<string>('chatLanguage') || 'English'
-    promptContent += '\n\n' + `IMPORTANT: You MUST respond in ${chatLanguage} language. Do NOT use any other language under any circumstances.`
+  // 加载记忆上下文
+  try {
+    const { contextLoader } = await import('@/lib/context/loader')
+    // 确定用于检索记忆的查询文本
+    let queryText = text || ''
+    if (baseMessages && baseMessages.length > 0) {
+      // 如果提供了消息数组，使用最后一条用户消息作为查询
+      const lastUserMessage = [...baseMessages].reverse().find(m => m.role === 'user')
+      if (lastUserMessage) {
+        queryText = typeof lastUserMessage.content === 'string' ? lastUserMessage.content : queryText
+      }
+    }
+
+    if (queryText) {
+      const memoryContext = await contextLoader.getContextForQuery(queryText)
+      if (memoryContext.preferences.length > 0 || memoryContext.memory.length > 0) {
+        const memoryPrompt = contextLoader.formatMemoriesForPrompt(memoryContext)
+        promptContent += '\n\n' + memoryPrompt
+      }
+    }
+  } catch (error) {
+    // 如果记忆加载失败，不影响正常对话
+    console.error('Failed to load memory context:', error)
   }
 
   // 如果提供了基础消息数组，直接使用它
@@ -244,35 +262,20 @@ export async function prepareMessages(
 /**
  * 创建OpenAI客户端，适用于所有AI类型
  */
-export async function createOpenAIClient(AiConfig?: AiConfig) {
+export async function createOpenAIClient(AiConfig?: AiConfig): Promise<OpenAICompatibleClient> {
   const store = await Store.load('store.json')
-  let baseURL
-  let apiKey
-  if (AiConfig) {
-    baseURL = AiConfig.baseURL
-    apiKey = AiConfig.apiKey
-  } else {
-    baseURL = await store.get<string>('baseURL')
-    apiKey = await store.get<string>('apiKey')
-  }
-  const proxyUrl = await store.get<string>('proxy')
 
-  // 创建OpenAI客户端
-  return new OpenAI({
-    apiKey: apiKey || '',
-    baseURL: baseURL,
-    dangerouslyAllowBrowser: true,
-    defaultHeaders:{
-      "x-stainless-arch": null,
-      "x-stainless-lang": null,
-      "x-stainless-os": null,
-      "x-stainless-package-version": null,
-      "x-stainless-retry-count": null,
-      "x-stainless-runtime": null,
-      "x-stainless-runtime-version": null,
-      "x-stainless-timeout": null,
-      ...(AiConfig?.customHeaders || {})
-    },
-    ...(proxyUrl ? { httpAgent: proxyUrl } : {})
+  if (AiConfig) {
+    return createTauriOpenAIClient(AiConfig)
+  }
+
+  const baseURL = await store.get<string>('baseURL')
+  const apiKey = await store.get<string>('apiKey')
+
+  return createTauriOpenAIClient({
+    key: 'runtime',
+    title: 'Runtime',
+    baseURL,
+    apiKey,
   })
 }

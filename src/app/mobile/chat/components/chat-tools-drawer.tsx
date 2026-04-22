@@ -9,10 +9,10 @@ import {
   DrawerTitle,
   DrawerTrigger,
 } from "@/components/ui/drawer"
-import { TagLinkToggle } from "./tag-link-toggle"
 import { RagToggle } from "./rag-toggle"
 import { McpSelector } from "./mcp-selector"
-import { MobileNewChat } from "./new-chat"
+import { ModelSelector } from "./model-selector"
+import { PromptSelector } from "./prompt-selector"
 import { useTranslations } from "next-intl"
 
 export function ChatToolsDrawer() {
@@ -36,15 +36,17 @@ export function ChatToolsDrawer() {
         <div className="p-4 overflow-auto">
           <div className="divide-y">
             <div className="h-16 flex items-center w-full">
-              <TagLinkToggle />
+              <ModelSelector />
             </div>
             <div className="h-16 flex items-center w-full">
-              <RagToggle />
+              <PromptSelector />
             </div>
             <div className="py-2">
               <McpSelector />
             </div>
-            <MobileNewChat />
+            <div className="h-16 flex items-center w-full">
+              <RagToggle />
+            </div>
           </div>
         </div>
       </DrawerContent>

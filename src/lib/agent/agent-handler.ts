@@ -7,12 +7,23 @@ import { reloadMcpTools } from './tools'
 import OpenAI from 'openai'
 
 export interface AgentHandlerConfig {
+  activeChatId?: number
   onThought?: (thought: string) => void
   onAction?: (action: string, params: Record<string, any>) => void
   onObservation?: (observation: string) => void
   onComplete?: (result: string, steps?: any[], stopped?: boolean) => void
   onError?: (error: string) => void
+  onFinalAnswerRender?: (markdownContent: string) => void  // 当检测到 Final Answer 时立即渲染 Markdown
+  formatAutoFinalAnswer?: (key: string, values?: Record<string, string>) => string
   requestConfirmation?: (toolName: string, params: Record<string, any>) => Promise<boolean>
+  currentQuote?: {
+    fileName: string
+    startLine: number
+    endLine: number
+    from: number
+    to: number
+    fullContent?: string
+  }
 }
 
 export class AgentHandler {
@@ -31,7 +42,10 @@ export class AgentHandler {
     const store = useChatStore.getState()
 
     store.resetAgentState()
-    store.setAgentState({ isRunning: true })
+    store.setAgentState({
+      activeChatId: this.config.activeChatId,
+      isRunning: true,
+    })
 
     // 确保 MCP Store 已初始化
     try {
@@ -155,7 +169,13 @@ export class AgentHandler {
         // 当 AI 选择 Skills 后，更新状态
         store.setAgentState({ selectedSkills: skillIds })
       },
+      onFinalAnswerRender: (markdownContent: string) => {
+        // 检测到 Final Answer 时，触发外部渲染
+        this.config.onFinalAnswerRender?.(markdownContent)
+      },
+      formatAutoFinalAnswer: this.config.formatAutoFinalAnswer,
       requestConfirmation: this.config.requestConfirmation,
+      currentQuote: this.config.currentQuote,
     }
 
     // 在开始执行前设置当前步骤的开始时间（确保第一次思考也有耗时）
@@ -217,11 +237,8 @@ export class AgentHandler {
     }
 
     try {
-      // 确保 Skill 管理器已初始化
-      await skillManager.initialize()
-
-      // 每次对话开始前重新加载 Skills，确保使用最新的配置
-      await skillsStore.refreshSkills()
+      // 确保 Skill 管理器已初始化（initSkills 会处理重复初始化）
+      await skillsStore.initSkills()
 
       // 获取所有已启用的 Skills
       const enabledSkills = await skillManager.getEnabledSkills()
@@ -248,8 +265,8 @@ export class AgentHandler {
     }
 
     try {
-      await skillManager.initialize()
-      await skillsStore.refreshSkills()
+      // 确保 Skill 管理器已初始化
+      await skillsStore.initSkills()
       const enabledSkills = await skillManager.getEnabledSkills()
 
       return enabledSkills.map(skill => ({

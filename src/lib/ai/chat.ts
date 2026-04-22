@@ -17,10 +17,10 @@ export async function fetchAi(
     const aiConfig = await getAISettings(modelType)
 
     // 验证AI服务
-    if (validateAIService(aiConfig?.baseURL) === null) return ''
+    if (await validateAIService(aiConfig?.baseURL) === null) return ''
 
     // 准备消息
-    const prepared = await prepareMessages(text, false, messages)
+    const prepared = await prepareMessages(text, messages)
     const finalMessages = prepared.messages
 
     const openai = await createOpenAIClient(aiConfig)
@@ -68,16 +68,19 @@ export async function fetchAiStream(
     const aiConfig = await getAISettings()
 
     // 验证AI服务
-    if (await validateAIService(aiConfig?.baseURL) === null) return ''
+    const validatedBaseURL = await validateAIService(aiConfig?.baseURL)
+    if (validatedBaseURL === null) {
+      return ''
+    }
 
     // 准备消息 - 如果提供了 messages 数组，使用它；否则用 prepareMessages
     let preparedMessages: OpenAI.Chat.ChatCompletionMessageParam[]
     if (messages && messages.length > 0) {
-      // 使用提供的消息数组，但需要添加语言设置
-      const prepared = await prepareMessages('', true, messages)
+      // 使用提供的消息数组
+      const prepared = await prepareMessages('', messages)
       preparedMessages = prepared.messages
     } else {
-      const prepared = await prepareMessages(text, true)
+      const prepared = await prepareMessages(text)
       preparedMessages = prepared.messages
     }
 
@@ -240,7 +243,13 @@ export async function fetchAiStream(
             const toolName = toolNameParts.join('__')
             
             // 解析参数
-            const args = JSON.parse(toolCall.function.arguments)
+            let args = {}
+            try {
+              args = JSON.parse(toolCall.function.arguments)
+            } catch (parseError) {
+              const errorMsg = parseError instanceof Error ? parseError.message : 'Invalid JSON'
+              throw new Error(`Invalid JSON in tool arguments: ${errorMsg}. Raw arguments: ${toolCall.function.arguments.slice(0, 200)}`)
+            }
             
             // 记录 MCP 工具调用（如果提供了 chatId）
             if (chatId) {
@@ -411,6 +420,7 @@ export async function fetchAiStream(
     
     return fullContent
   } catch (error) {
+    console.error('[fetchAiStream] Error:', error)
     return handleAIError(error) || ''
   }
 }
@@ -430,7 +440,7 @@ export async function fetchAiStreamToken(text: string, onUpdate: (content: strin
     if (await validateAIService(aiConfig?.baseURL) === null) return ''
     
     // 准备消息
-    const { messages } = await prepareMessages(text, true)
+    const { messages } = await prepareMessages(text)
   
     const openai = await createOpenAIClient(aiConfig)
 

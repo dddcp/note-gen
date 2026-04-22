@@ -8,6 +8,9 @@ import { noteGenDefaultModels, noteGenModelKeys } from '@/app/model-config'
 import { fetch } from '@tauri-apps/plugin-http'
 import { CustomThemeColors } from '@/types/theme'
 import { applyThemeColors, removeThemeColors } from '@/lib/theme-utils'
+import { getNormalizedImageHosting } from '@/lib/image-hosting-config'
+import { normalizeSpeechMode } from '@/lib/speech/preferences'
+import type { SpeechMode } from '@/lib/speech/types'
 
 export enum GenTemplateRange {
   All = 'all',
@@ -75,6 +78,12 @@ interface SettingState {
   sttModel: string
   setSttModel: (sttModel: string) => Promise<void>
 
+  textToSpeechMode: SpeechMode
+  setTextToSpeechMode: (mode: SpeechMode) => Promise<void>
+
+  speechToTextMode: SpeechMode
+  setSpeechToTextMode: (mode: SpeechMode) => Promise<void>
+
   condenseModel: string
   setCondenseModel: (condenseModel: string) => Promise<void>
 
@@ -111,6 +120,13 @@ interface SettingState {
 
   autoSync: string
   setAutoSync: (autoSync: string) => Promise<void>
+
+  // 自动拉取相关设置
+  autoPullOnOpen: boolean
+  setAutoPullOnOpen: (autoPullOnOpen: boolean) => Promise<void>
+
+  autoPullOnSwitch: boolean
+  setAutoPullOnSwitch: (autoPullOnSwitch: boolean) => Promise<void>
 
   // Gitee 相关设置
   giteeAccessToken: string
@@ -152,8 +168,8 @@ interface SettingState {
   setGiteaUsername: (giteaUsername: string) => Promise<void>
 
   // 主要备份方式设置
-  primaryBackupMethod: 'github' | 'gitee' | 'gitlab' | 'gitea'
-  setPrimaryBackupMethod: (method: 'github' | 'gitee' | 'gitlab' | 'gitea') => Promise<void>
+  primaryBackupMethod: 'github' | 'gitee' | 'gitlab' | 'gitea' | 's3' | 'webdav'
+  setPrimaryBackupMethod: (method: 'github' | 'gitee' | 'gitlab' | 'gitea' | 's3' | 'webdav') => Promise<void>
 
   lastSettingPage: string
   setLastSettingPage: (page: string) => Promise<void>
@@ -229,9 +245,9 @@ interface SettingState {
   recordToolbarConfig: RecordToolbarItem[]
   setRecordToolbarConfig: (config: RecordToolbarItem[]) => Promise<void>
 
-  // 托盘设置
-  trayEnabled: boolean
-  setTrayEnabled: (enabled: boolean) => Promise<void>
+  // 编辑器撤销/重做按钮显示设置
+  showEditorUndoRedo: boolean
+  setShowEditorUndoRedo: (show: boolean) => Promise<void>
 
   // 摘要设置
   enableCondense: boolean
@@ -259,7 +275,13 @@ const useSettingStore = create<SettingState>((set, get) => ({
   initSettingData: async () => {
     const store = await Store.load('store.json');
     await get().setVersion()
-    
+
+    // 初始化图床配置
+    const savedUseImageRepo = await store.get<boolean>('useImageRepo')
+    if (savedUseImageRepo !== undefined && savedUseImageRepo !== null) {
+      set({ useImageRepo: savedUseImageRepo })
+    }
+
     // 初始化默认的NoteGen模型配置
     const existingAiModelList = (await store.get('aiModelList') as AiConfig[]) || []
     const hasNoteGenModels = existingAiModelList.some(config => 
@@ -373,6 +395,12 @@ const useSettingStore = create<SettingState>((set, get) => ({
         }
       }
     }
+
+    const currentTextToSpeechMode = await store.get('textToSpeechMode')
+    set({ textToSpeechMode: normalizeSpeechMode(currentTextToSpeechMode) })
+
+    const currentSpeechToTextMode = await store.get('speechToTextMode')
+    set({ speechToTextMode: normalizeSpeechMode(currentSpeechToTextMode) })
 
     // 检查并初始化其他模型类型
     const modelTypes = [
@@ -624,6 +652,22 @@ const useSettingStore = create<SettingState>((set, get) => ({
     set({ sttModel })
   },
 
+  textToSpeechMode: 'auto',
+  setTextToSpeechMode: async (mode) => {
+    const normalizedMode = normalizeSpeechMode(mode)
+    const store = await Store.load('store.json')
+    await store.set('textToSpeechMode', normalizedMode)
+    set({ textToSpeechMode: normalizedMode })
+  },
+
+  speechToTextMode: 'auto',
+  setSpeechToTextMode: async (mode) => {
+    const normalizedMode = normalizeSpeechMode(mode)
+    const store = await Store.load('store.json')
+    await store.set('speechToTextMode', normalizedMode)
+    set({ speechToTextMode: normalizedMode })
+  },
+
   condenseModel: '',
   setCondenseModel: async (condenseModel) => {
     const store = await Store.load('store.json');
@@ -704,6 +748,13 @@ const useSettingStore = create<SettingState>((set, get) => ({
     set({ useImageRepo })
     const store = await Store.load('store.json');
     await store.set('useImageRepo', useImageRepo)
+    if (useImageRepo) {
+      const normalizedImageHosting = getNormalizedImageHosting(await store.get<string>('mainImageHosting'))
+      if (normalizedImageHosting.shouldPersist) {
+        await store.set('mainImageHosting', normalizedImageHosting.value)
+      }
+    }
+    await store.save()
   },
 
   autoSync: 'disabled',
@@ -711,6 +762,39 @@ const useSettingStore = create<SettingState>((set, get) => ({
     set({ autoSync })
     const store = await Store.load('store.json');
     await store.set('autoSync', autoSync)
+  },
+
+  // 自动拉取相关设置 - 默认关闭
+  autoPullOnOpen: false,
+  setAutoPullOnOpen: async (autoPullOnOpen: boolean) => {
+    set({ autoPullOnOpen })
+    const store = await Store.load('store.json');
+    await store.set('autoPullOnOpen', autoPullOnOpen)
+
+    // 同步更新 sync-manager 的配置
+    try {
+      const { getSyncManager } = await import('@/lib/sync/sync-manager')
+      const manager = getSyncManager()
+      await manager.updateConfig({ autoPullOnOpen })
+    } catch {
+      // 静默处理
+    }
+  },
+
+  autoPullOnSwitch: false,
+  setAutoPullOnSwitch: async (autoPullOnSwitch: boolean) => {
+    set({ autoPullOnSwitch })
+    const store = await Store.load('store.json');
+    await store.set('autoPullOnSwitch', autoPullOnSwitch)
+
+    // 同步更新 sync-manager 的配置
+    try {
+      const { getSyncManager } = await import('@/lib/sync/sync-manager')
+      const manager = getSyncManager()
+      await manager.updateConfig({ autoPullOnSwitch })
+    } catch {
+      // 静默处理
+    }
   },
 
   lastSettingPage: 'ai',
@@ -857,7 +941,7 @@ const useSettingStore = create<SettingState>((set, get) => ({
 
   // 默认使用 GitHub 作为主要备份方式
   primaryBackupMethod: 'github',
-  setPrimaryBackupMethod: async (method: 'github' | 'gitee' | 'gitlab' | 'gitea') => {
+  setPrimaryBackupMethod: async (method: 'github' | 'gitee' | 'gitlab' | 'gitea' | 's3' | 'webdav') => {
     const store = await Store.load('store.json')
     await store.set('primaryBackupMethod', method)
     await store.save()
@@ -1067,18 +1151,14 @@ const useSettingStore = create<SettingState>((set, get) => ({
 
   // 聊天工具栏配置 - PC 端
   chatToolbarConfigPc: [
-    // 底部工具栏
+    // 底部工具栏（可排序）
     { id: 'modelSelect', enabled: true, order: 0 },
     { id: 'promptSelect', enabled: true, order: 1 },
-    { id: 'chatLanguage', enabled: true, order: 2 },
-    // 顶部工具栏 - 左侧
-    { id: 'chatLink', enabled: true, order: 3 },
-    { id: 'fileLink', enabled: true, order: 4 },
-    { id: 'mcpButton', enabled: true, order: 5 },
-    { id: 'ragSwitch', enabled: true, order: 6 },
-    { id: 'clipboardMonitor', enabled: true, order: 7 },
-    // 顶部工具栏 - 右侧
-    { id: 'newChat', enabled: true, order: 8 },
+    { id: 'mcpButton', enabled: true, order: 2 },
+    { id: 'ragSwitch', enabled: true, order: 3 },
+    { id: 'clipboardMonitor', enabled: true, order: 4 },
+    // 顶部工具栏 - 右侧（不参与排序）
+    { id: 'newChat', enabled: true, order: 5 },
   ],
   setChatToolbarConfigPc: async (config: ChatToolbarItem[]) => {
     set({ chatToolbarConfigPc: config })
@@ -1091,13 +1171,10 @@ const useSettingStore = create<SettingState>((set, get) => ({
   chatToolbarConfigMobile: [
     { id: 'modelSelect', enabled: true, order: 0 },
     { id: 'promptSelect', enabled: true, order: 1 },
-    { id: 'chatLanguage', enabled: true, order: 2 },
-    { id: 'chatLink', enabled: true, order: 3 },
-    { id: 'fileLink', enabled: true, order: 4 },
-    { id: 'mcpButton', enabled: true, order: 5 },
-    { id: 'ragSwitch', enabled: true, order: 6 },
-    { id: 'clipboardMonitor', enabled: true, order: 7 },
-    { id: 'newChat', enabled: true, order: 8 },
+    { id: 'mcpButton', enabled: true, order: 2 },
+    { id: 'ragSwitch', enabled: true, order: 3 },
+    { id: 'clipboardMonitor', enabled: true, order: 4 },
+    { id: 'newChat', enabled: true, order: 5 },
   ],
   setChatToolbarConfigMobile: async (config: ChatToolbarItem[]) => {
     set({ chatToolbarConfigMobile: config })
@@ -1123,15 +1200,6 @@ const useSettingStore = create<SettingState>((set, get) => ({
     await store.save()
   },
 
-  // 托盘设置
-  trayEnabled: true,
-  setTrayEnabled: async (enabled: boolean) => {
-    set({ trayEnabled: enabled })
-    const store = await Store.load('store.json');
-    await store.set('trayEnabled', enabled)
-    await store.save()
-  },
-
   // 摘要设置
   enableCondense: true,
   setEnableCondense: async (enabled: boolean) => {
@@ -1154,6 +1222,15 @@ const useSettingStore = create<SettingState>((set, get) => ({
     set({ condenseMaxLength: length })
     const store = await Store.load('store.json');
     await store.set('condenseMaxLength', length)
+    await store.save()
+  },
+
+  // 编辑器撤销/重做按钮显示设置 - 默认开启
+  showEditorUndoRedo: true,
+  setShowEditorUndoRedo: async (show: boolean) => {
+    set({ showEditorUndoRedo: show })
+    const store = await Store.load('store.json');
+    await store.set('showEditorUndoRedo', show)
     await store.save()
   },
 }))
